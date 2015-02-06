@@ -26,6 +26,7 @@ class CommentSendingRequestCaptchaException extends CommentSendingException {}
 class CommentSendingWrongCaptchaException extends CommentSendingException {}
 class CommentSendingThreadClosedException extends CommentSendingException {}
 class CommentSendingDatabaseException extends CommentSendingException {}
+class CommentSendingBoardClosedException extends CommentSendingException {}
 
 class CommentInsert extends Comment
 {
@@ -194,6 +195,7 @@ class CommentInsert extends Comment
      * @throws CommentSendingSameCommentException
      * @throws CommentSendingWrongCaptchaException
      * @throws CommentSendingUnallowedCapcodeException
+     * @throws CommentSendingBoardClosedExceptionn
      * @return array error key with explanation to show to user, or success and post row
      */
     public function p_insert(Media $media = null, $data = [])
