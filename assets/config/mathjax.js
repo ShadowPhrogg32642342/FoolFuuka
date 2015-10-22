@@ -3,7 +3,7 @@
 
 /*************************************************************
  *
- *  MathJax/config/default.js
+ *  mathjax/mathjax/config/default.js
  *
  *  This configuration file is loaded when you load MathJax
  *  via <script src="MathJax.js?config=default"></script>
