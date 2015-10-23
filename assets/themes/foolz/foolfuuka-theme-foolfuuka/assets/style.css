@@ -985,7 +985,7 @@ input[type="checkbox"] {
   background-color: #757575 !important;
 }
 .theme_default.midnight ::selection {
-  background-color: #757575 !important;
+  background: rgba(117, 117, 117, 0.996) !important;
 }
 .theme_default.midnight .container {
   background: #000000;
