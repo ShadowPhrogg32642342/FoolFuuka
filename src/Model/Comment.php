@@ -380,6 +380,8 @@ class Comment extends Model
 
             $builder = new \JBBCode\CodeDefinitionBuilder('spoiler', '<span class="spoiler">{param}</span>');
             array_push($definitions, $builder->build());
+            $builder = new \JBBCode\CodeDefinitionBuilder('sp', '<span class="spoiler">{param}</span>');
+            array_push($definitions, $builder->build());
 
             $builder = new \JBBCode\CodeDefinitionBuilder('sub', '<sub>{param}</sub>');
             $builder->setNestLimit(1);
