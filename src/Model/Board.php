@@ -557,7 +557,7 @@ class Board extends Model
         }
 
         try {
-            $this->total_count = Cache::item('Foolz_FoolFuuka_Model_Board.getLatestCount.result.'.$type_cache)->get();
+            $this->total_count = Cache::item('Foolz_FoolFuuka_Model_Board.getLatestCount.result.'.$this->radix->shortname.'.'.$type_cache)->get();
             return $this;
         } catch (\OutOfBoundsException $e) {
             switch ($order) {
@@ -582,7 +582,7 @@ class Board extends Model
                 ->fetch();
 
             $this->total_count = $result['threads'];
-            Cache::item('Foolz_FoolFuuka_Model_Board.getLatestCount.result.'.$type_cache)->set($this->total_count, 300);
+            Cache::item('Foolz_FoolFuuka_Model_Board.getLatestCount.result.'.$this->radix->shortname.'.'.$type_cache)->set($this->total_count, 300);
         }
 
         $this->profiler->logMem('Board $this', $this);
@@ -689,7 +689,7 @@ class Board extends Model
         extract($this->options);
 
         try {
-            $this->total_count = Cache::item('Foolz_FoolFuuka_Model_Board.getThreadsCount.result')->get();
+            $this->total_count = Cache::item('Foolz_FoolFuuka_Model_Board.getThreadsCount.result.'.$this->radix->shortname)->get();
         } catch (\OutOfBoundsException $e) {
             $result = $this->dc->qb()
                 ->select('COUNT(thread_num) AS threads')
@@ -698,7 +698,7 @@ class Board extends Model
                 ->fetch();
 
             $this->total_count = $result['threads'];
-            Cache::item('Foolz_FoolFuuka_Model_Board.getThreadsCount.result')->set($this->total_count, 300);
+            Cache::item('Foolz_FoolFuuka_Model_Board.getThreadsCount.result.'.$this->radix->shortname)->set($this->total_count, 300);
         }
 
         return $this;
@@ -956,7 +956,9 @@ class Board extends Model
             'dead' => (bool) $this->radix->archive,
             'ghost_exist' => $ghost_post_present,
             'disable_image_upload' => (bool) $this->radix->archive,
-            'last_modified' => $last_modified
+            'last_modified' => $last_modified,
+            'nreplies' => $thread['nreplies'],
+            'nimages' => $thread['nimages']
         ];
 
         if (($this->radix->getValue('thread_lifetime') > 0 && time() - $thread['time_last'] > $this->radix->getValue('thread_lifetime')) || $ghost_post_present) {

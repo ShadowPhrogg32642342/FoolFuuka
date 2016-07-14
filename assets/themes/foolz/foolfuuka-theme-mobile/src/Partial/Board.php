@@ -1,6 +1,6 @@
 <?php
 
-namespace Foolz\FoolFuuka\Theme\FoolFuuka\Partial;
+namespace Foolz\FoolFuuka\Theme\Mobile\Partial;
 
 use Foolz\FoolFuuka\Model\Comment;
 use Foolz\FoolFuuka\Model\CommentBulk;
@@ -79,7 +79,7 @@ class Board extends \Foolz\FoolFuuka\View\View
                                 class="btnr parent">ImgOps</a><a
                                 href="http://iqdb.org/?url=<?= $op_media->getThumbLink($this->getRequest()) ?>" target="_blank"
                                 class="btnr parent">iqdb</a><a
-                                href="http://saucenao.com/search.php?url=<?= trim($this->getUri()->create($op_media->getMediaLink($this->getRequest())),'/') ?>" target="_blank"
+                                href="http://saucenao.com/search.php?url=<?= $op_media->getThumbLink($this->getRequest()) ?>" target="_blank"
                                 class="btnr parent">SauceNAO</a><?php if (!$op->radix->archive || $op->radix->getValue('archive_full_images')) : ?><a
                                 href="<?= $op_media->getMediaDownloadLink($this->getRequest()) ?>" download="<?= $op_media->getMediaFilenameProcessed() ?>"
                                 class="btnr parent"><i class="icon-download-alt"></i></a><?php endif; ?>
@@ -90,6 +90,29 @@ class Board extends \Foolz\FoolFuuka\View\View
                 <?php endif; ?>
                 <header>
                     <div class="post_data">
+                        <div class="post_mobile_controls_collapse dropdown">
+                            <button data-toggle="dropdown" class="btnr parent"><i class="icon-th-list"></i></button>
+                        <ul class="dropdown-menu" role="menu">
+                            <li class="nav-header">Post</li>
+                            <li><a href="#" data-post="<?= $op->doc_id ?>" data-post-id="<?= $num ?>" data-board="<?= htmlspecialchars($op->radix->shortname) ?>" data-controls-modal="post_tools_modal" data-backdrop="true" data-keyboard="true" data-function="report"><?= _i('Report') ?></a></li>
+                            <?php if ($op->subnum > 0 || $this->getAuth()->hasAccess('comment.passwordless_deletion') || !$op->radix->archive) : ?><li><a href="#" data-post="<?= $op->doc_id ?>" data-post-id="<?= $num ?>" data-board="<?= htmlspecialchars($op->radix->shortname) ?>" data-controls-modal="post_tools_modal" data-backdrop="true" data-keyboard="true" data-function="delete"><?= _i('Delete') ?></a></li><?php endif; ?>
+                            <?php if ($op_media !== null) : ?>
+                                <?php if ($op_media->getMediaStatus($this->getRequest()) !== 'banned' || $this->getAuth()->hasAccess('media.see_hidden')) : ?>
+                                    <?php if ( !$op->radix->hide_thumbnails || $this->getAuth()->hasAccess('media.see_hidden')) : ?>
+                                        <li class="divider"></li>
+                                        <li class="nav-header">Media</li>
+                                        <li><a href="<?= $this->getUri()->create(((isset($modifiers['post_show_board_name']) && $modifiers['post_show_board_name']) ? '_' : $op->radix->shortname) . '/search/image/' . $op_media->getSafeMediaHash()) ?>"><?= _i('View Same') ?></a></li>
+                                        <li><a href="http://www.google.com/searchbyimage?image_url=<?= $op_media->getThumbLink($this->getRequest()) ?>" target="_blank">Google</a></li>
+                                        <li><a href="http://imgops.com/<?= $op_media->getThumbLink($this->getRequest()) ?>" target="_blank">ImgOps</a></li>
+                                        <li><a href="http://iqdb.org/?url=<?= $op_media->getThumbLink($this->getRequest()) ?>" target="_blank">iqdb</a></li>
+                                        <li><a href="http://saucenao.com/search.php?url=<?= $op_media->getThumbLink($this->getRequest()) ?>" target="_blank">SauceNAO</a></li>
+                                        <?php if (!$op->radix->archive || $op->radix->getValue('archive_full_images')) : ?><li><a href="<?= $op_media->getMediaDownloadLink($this->getRequest()) ?>" download="<?= $op_media->getMediaFilenameProcessed() ?>"><i class="icon-download-alt"></i> Download</a></li><?php endif; ?>
+                                    <?php endif; ?>
+                                <?php endif ?>
+                            <?php endif; ?>
+                        </ul>
+                        </div>
+                        <div class="post_mobile_controls"></div>
                         <?php if ($op->getTitleProcessed() !== '') : ?><h2 class="post_title"><?= $op->getTitleProcessed() ?></h2><?php endif; ?>
                         <span class="post_poster_data">
                             <?php if ($op->email && $op->email !== 'noko') : ?><a href="mailto:<?= rawurlencode($op->email) ?>"><?php endif; ?><span class="post_author"><?= $op->getNameProcessed() ?></span><?= ($op->getNameProcessed() && $op->getTripProcessed()) ? ' ' : '' ?><span class="post_tripcode"><?= $op->getTripProcessed() ?></span><?php if ($op->email && $op->email !== 'noko') : ?></a><?php endif ?>
@@ -114,7 +137,7 @@ class Board extends \Foolz\FoolFuuka\View\View
                             <?php if ($op->sticky) : ?><i class="icon-pushpin" title="<?= _i('This thread has been stickied.') ?>"></i><?php endif; ?>
                             <?php if ($op->locked) : ?><i class="icon-lock" title="<?= _i('This thread has been locked.') ?>"></i><?php endif; ?>
                         </span>
-
+                        <span class="mobile_view"><a href="<?= $this->getUri()->create(array($op->radix->shortname, 'thread', $num)) ?>" class="btnr parent"><?= _i('View') ?></a></span>
                         <span class="post_controls">
                 <a href="<?= $this->getUri()->create(array($op->radix->shortname, 'thread', $num)) ?>" class="btnr parent"><?= _i('View') ?></a><a href="<?= $this->getUri()->create(array($op->radix->shortname, $controller_method, $num)) . '#reply' ?>" class="btnr parent"><?= _i('Reply') ?></a><?= (isset($post['omitted']) && $post['omitted'] > 50) ? '<a href="' . $this->getUri()->create($op->radix->shortname . '/last/50/' . $num) . '" class="btnr parent">' . _i('Last 50') . '</a>' : '' ?><?= ($op->radix->archive) ? '<a href="//boards.4chan.org/' . $op->radix->shortname . '/thread/' . $num . '" class="btnr parent">' . _i('Original') . '</a>' : '' ?><a href="#" class="btnr parent" data-post="<?= $op->doc_id ?>" data-post-id="<?= $num ?>" data-board="<?= htmlspecialchars($op->radix->shortname) ?>" data-controls-modal="post_tools_modal" data-backdrop="true" data-keyboard="true" data-function="report"><?= _i('Report') ?></a><?php if ($this->getAuth()->hasAccess('maccess.mod') || !$op->radix->archive) : ?><a href="#" class="btnr parent" data-post="<?= $op->doc_id ?>" data-post-id="<?= $num ?>" data-board="<?= htmlspecialchars($op->radix->shortname) ?>" data-controls-modal="post_tools_modal" data-backdrop="true" data-keyboard="true" data-function="delete"><?= _i('Delete') ?></a><?php endif; ?>
             </span>

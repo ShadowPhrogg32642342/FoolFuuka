@@ -412,6 +412,13 @@ class Comment extends Model
             $builder = new \JBBCode\CodeDefinitionBuilder('u', '<span class="underline">{param}</span>');
             array_push($definitions, $builder->build());
 
+            $builder = new \JBBCode\CodeDefinitionBuilder('banned', '<span class="banned">{param}</span>');
+            array_push($definitions, $builder->build());
+
+            $builder = new \JBBCode\CodeDefinitionBuilder('fortune', '<strong><span class="fortune" style="color: {color}">{param}</span></strong>');
+            $builder->setUseOption(true);
+            array_push($definitions, $builder->build());
+
             $definitions = Hook::forge('Foolz\FoolFuuka\Model\Comment::processCommentBBCode#var.definitions')
                 ->setObject($this)
                 ->setParam('definitions', $definitions)
@@ -551,7 +558,7 @@ class Comment extends Model
 
             // external links; defaults to 4chan
             'short_link' => '//boards.4chan.org/'.$data->shortname.'/',
-            'query_link' => '//boards.4chan.org/'.$data->shortname.'/res/'.$data->query,
+            'query_link' => '//boards.4chan.org/'.$data->shortname.'/thread/'.$data->query,
 
             // additional attributes + backlinking attributes
             'attributes' => '',
@@ -622,7 +629,7 @@ class Comment extends Model
             if (!$this->radix->archive) {
                 $this->dc->qb()
                     ->update($this->radix->getTable())
-                    ->set('sticky', $value)
+                    ->set($field, $value)
                     ->where('doc_id = :doc_id')
                     ->setParameter(':doc_id', $this->comment->doc_id)
                     ->execute();

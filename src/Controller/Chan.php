@@ -514,7 +514,9 @@ class Chan extends Common
                     'thread_dead' => $thread_status['dead'],
                     'latest_doc_id' => $latest_doc_id,
                     'latest_timestamp' => $latest_timestamp,
-                    'thread_op_data' => $thread[$num]['op']
+                    'thread_op_data' => $thread[$num]['op'],
+                    'nreplies' => $thread_status['nreplies'],
+                    'nimages' => $thread_status['nimages']
                 ]);
 
                 $this->builder->createPartial('body', 'board')
@@ -642,7 +644,7 @@ class Chan extends Common
         $this->param_manager->setParam('section_title', _i('Reports'));
 
         /** @var Report[] $reports */
-        $reports = $this->getContext()->getService('foolfuuka.report_collection')->getAll();
+        $reports = $this->getContext()->getService('foolfuuka.report_collection')->getGrouped();
 
         $results = [];
         foreach ($reports as $report) {

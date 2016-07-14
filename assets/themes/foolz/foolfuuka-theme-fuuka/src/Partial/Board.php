@@ -44,9 +44,10 @@ class Board extends \Foolz\FoolFuuka\View\View
                     <span><?= _i('File:') . ' ' . ByteSize::formatBinary($op_media->media_size, 0) . ', ' . $op_media->media_w . 'x' . $op_media->media_h . ', ' . $op_media->getMediaFilenameProcessed() ?> <?= '<!-- ' . substr($op_media->media_hash, 0, -2) . '-->' ?></span>
                         <?php if ( !$op->radix->hide_thumbnails || $this->getAuth()->hasAccess('maccess.mod')) : ?>
                             [<a href="<?= $this->getUri()->create($op->radix->shortname . '/search/image/' . $op_media->getSafeMediaHash()) ?>"><?= _i('View Same') ?></a>]
-                            [<a href="http://google.com/searchbyimage?image_url=<?= trim($this->getUri()->create($op_media->getMediaLink($this->getRequest())),'/') ?>">Google</a>]
-                            [<a href="http://iqdb.org/?url=<?= trim($this->getUri()->create($op_media->getMediaLink($this->getRequest())),'/') ?>">iqdb</a>]
-                            [<a href="http://saucenao.com/search.php?url=<?= trim($this->getUri()->create($op_media->getMediaLink($this->getRequest())),'/') ?>">SauceNAO</a>]
+                            [<a href="http://www.google.com/searchbyimage?image_url=<?= $op_media->getThumbLink($this->getRequest()) ?>">Google</a>]
+                            [<a href="http://imgops.com/<?= $op_media->getThumbLink($this->getRequest()) ?>">ImgOps</a>]
+                            [<a href="http://iqdb.org/?url=<?= $op_media->getThumbLink($this->getRequest()) ?>">iqdb</a>]
+                            [<a href="http://saucenao.com/search.php?url=<?= $op_media->getThumbLink($this->getRequest()) ?>">SauceNAO</a>]
                         <?php endif; ?>
                     <br />
                     <?php endif; ?>
@@ -107,6 +108,25 @@ class Board extends \Foolz\FoolFuuka\View\View
                 </div>
 
                 <blockquote><p><?= $op->getCommentProcessed() ?></p></blockquote>
+                <?php if ($op_media !== null && $op_media->getMediaStatus($this->getRequest()) === 'normal' && $op->radix->getValue('display_exif') && $op_media->exif !== NULL) : ?>
+                    <table class="exiftable"><tbody>
+                        <?php foreach (json_decode($op_media->exif) as $a => $b) : ?>
+                            <?php if(is_object($b)) : ?>
+                                <?php foreach ($b as $c => $d) : ?>
+                                    <tr><td><?= htmlentities($a)," ",htmlentities($c) ?></td><td><?= htmlentities($d) ?></td></tr>
+                                <?php endforeach ?>
+                            <?php elseif(is_array($b)): ?>
+                                <tr><td><?= htmlentities($a) ?></td><td>
+                                        <?php foreach ($b as $e) : ?>
+                                            <?= htmlentities($e) ?>
+                                        <?php endforeach ?></td></tr>
+                            <?php else: ?>
+                                <tr><td><?= htmlentities($a) ?></td><td><?= htmlentities($b) ?></td></tr>
+                            <?php endif; ?>
+                        <?php endforeach ?>
+                        </tbody></table>
+                    <br />
+                <?php endif; ?>
                 <?php if (isset($post['omitted']) && $post['omitted'] > 0) : ?>
                 <span class="omitted">
                     <?php if (isset($post['images_omitted']) && $post['images_omitted'] > 0) : ?>
