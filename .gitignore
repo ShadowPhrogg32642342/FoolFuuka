@@ -3,6 +3,4 @@ vendor/
 cron/
 public/boards/
 public/tools/
-.idea
-.DS_Store
-._.DS_Store
+**/.idea
