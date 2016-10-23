@@ -251,6 +251,89 @@ class Chan extends Common
         return $this->response->setData(['error' => _i('Requested resource does not exist.')])->setStatusCode(404);
     }
 
+    public function get_boards()
+    {
+        return $this->get_site('boards');
+    }
+
+    public function get_archives()
+    {
+        return $this->get_site('archives');
+    }
+
+    public function get_site($mode = '')
+    {
+        $res['site'] = [
+            'url' => $this->uri->base(),
+            'name' => $this->preferences->get('foolframe.gen.website_title'),
+            'title' => $this->preferences->get('foolframe.gen.index_title'),
+            'notices' => $this->preferences->get('foolframe.theme.header_text'),
+            'media_http' => preg_split("/\\r\\n|\\r|\\n/", $this->preferences->get('foolfuuka.boards.media_balancers')),
+            'media_https' => preg_split("/\\r\\n|\\r|\\n/", $this->preferences->get('foolfuuka.boards.media_balancers_https')),
+            'global_search_enabled' => (bool)$this->preferences->get('foolfuuka.sphinx.global')
+        ];
+
+        $radices = [];
+        switch ($mode) {
+            case 'boards':
+                $radices = $this->radix_coll->getBoards();
+                break;
+            case 'archives':
+                $radices = $this->radix_coll->getArchives();
+                break;
+            default:
+                $radices = $this->radix_coll->getAll();
+                break;
+        }
+
+        foreach ($radices as $board) {
+            $res[($board->archive ? 'archives' : 'boards')][$board->id] = [
+                'name' => $board->name,
+                'shortname' => $board->shortname,
+                'board_url' => $this->uri->create($board->shortname . '/'),
+                'threads_per_page' => $board->getValue('threads_per_page'),
+                'original_board_url' => ($board->archive ? $board->getValue('board_url') : $this->uri->create($board->shortname . '/')),
+                'thumbs_url' => $board->getValue('thumbs_url'),
+                'images_url' => $board->getValue('images_url'),
+                'anonymous_default_name' => $board->getValue('anonymous_default_name'),
+                'max_comment_characters_allowed' => $board->getValue('max_comment_characters_allowed'),
+                'max_comment_lines_allowed' => $board->getValue('max_comment_lines_allowed'),
+                'cooldown_new_comment' => $board->getValue('cooldown_new_comment'),
+                'transparent_spoiler' => (bool)$board->getValue('transparent_spoiler'),
+                'enable_flags' => (bool)$board->getValue('enable_flags'),
+                'display_exif' => (bool)$board->getValue('display_exif'),
+                'enable_poster_hash' => (bool)$board->getValue('enable_poster_hash'),
+                'disable_ghost' => (bool)$board->getValue('disable_ghost'),
+                'is_nsfw' => (bool)$board->getValue('is_nsfw'),
+                'hide_thumbnails' => (bool)$board->getValue('hide_thumbnails'),
+                'search_enabled' => (bool)$board->getValue('sphinx'),
+                'board_hidden' => (bool)$board->getValue('hidden')
+            ];
+            if (!$board->archive) {
+                $res[($board->archive ? 'archives' : 'boards')][$board->id]['internal_board_settings'] = [
+                    'op_image_upload_necessity' => $board->getValue('op_image_upload_necessity'),
+                    'thumbnail_op_width' => $board->getValue('thumbnail_op_width'),
+                    'thumbnail_op_height' => $board->getValue('thumbnail_op_height'),
+                    'thumbnail_reply_width' => $board->getValue('thumbnail_reply_width'),
+                    'thumbnail_reply_height' => $board->getValue('thumbnail_reply_height'),
+                    'max_image_size_kilobytes' => $board->getValue('max_image_size_kilobytes'),
+                    'max_image_size_width' => $board->getValue('max_image_size_width'),
+                    'max_image_size_height' => $board->getValue('max_image_size_height'),
+                    'max_posts_count' => $board->getValue('max_posts_count'),
+                    'max_images_count' => $board->getValue('max_images_count'),
+                    'cooldown_new_thread' => $board->getValue('cooldown_new_thread'),
+                    'thread_lifetime' => $board->getValue('thread_lifetime'),
+                    'min_image_repost_time' => $board->getValue('min_image_repost_time')
+                ];
+            } else {
+                $res[($board->archive ? 'archives' : 'boards')][$board->id]['archive_full_images'] =
+                    (bool)$board->getValue('archive_full_images');
+            }
+        }
+
+        return $this->response->setData($res);
+    }
+
     public function get_index()
     {
         if (!$this->check_board()) {
@@ -269,11 +352,17 @@ class Chan extends Common
 
         $page = intval($page);
 
+        $order = 'by_thread';
+
+        if($this->getQuery('order') !== null && in_array($this->getQuery('order'), ['by_post', 'by_thread', 'ghost'])) {
+            $order = $this->getQuery('order');
+        }
+
         try {
             $options = [
                 'per_page' => $this->radix->getValue('threads_per_page'),
                 'per_thread' => 5,
-                'order' => 'by_thread'
+                'order' => $order
             ];
 
             $board = Board::forge($this->getContext())
@@ -281,6 +370,45 @@ class Chan extends Common
                 ->setRadix($this->radix)
                 ->setPage($page)
                 ->setOptions($options);
+
+            foreach ($board->getCommentsUnsorted() as $comment) {
+                $this->apify($comment);
+            }
+
+            $this->response->setData($board->getComments());
+        } catch (\Foolz\FoolFuuka\Model\BoardThreadNotFoundException $e) {
+            return $this->response->setData(['error' => _i('Thread not found.')]);
+        } catch (\Foolz\FoolFuuka\Model\BoardException $e) {
+            return $this->response->setData(['error' => _i('Encountered an unknown error.')])->setStatusCode(500);
+        }
+
+        return $this->response;
+    }
+
+    public function get_gallery()
+    {
+        if (!$this->check_board()) {
+            return $this->response->setData(['error' => _i('No board selected.')])->setStatusCode(422);
+        }
+
+        $page = $this->getQuery('page');
+
+        if (!$page) {
+            return $this->response->setData(['error' => _i('The "page" parameter is missing.')])->setStatusCode(422);
+        }
+
+        if (!ctype_digit((string)$page)) {
+            return $this->response->setData(['error' => _i('The value for "page" is invalid.')])->setStatusCode(422);
+        }
+
+        $page = intval($page);
+
+        try {
+            $board = Board::forge($this->getContext())
+                ->getThreads()
+                ->setRadix($this->radix)
+                ->setPage($page)
+                ->setOptions('per_page', 100);
 
             foreach ($board->getCommentsUnsorted() as $comment) {
                 $this->apify($comment);
@@ -356,7 +484,11 @@ class Chan extends Common
 
             $comments = $board->getComments();
 
-            array_push($comments,['total_found' => $board->getTotalResults()]);
+            $comments['meta'] = [
+                'total_found' => (int) $board->getTotalResults(),
+                'max_results' => $this->preferences->get('foolfuuka.sphinx.max_matches', 5000),
+                'search_title' => $board->title
+            ];
 
             $this->response->setData($comments);
         } catch (\Foolz\FoolFuuka\Model\SearchException $e) {
@@ -614,8 +746,42 @@ class Chan extends Common
                     $this->getPost('length'),
                     $this->getPost('board_ban') === 'global' ? array() : array($this->radix->id)
                 );
+
+                if($this->getPost('delete_user') === 'true') {
+                    if($this->getPost('board_ban') === 'global') {
+                        foreach ($this->radix_coll->getAll() as $new_radix) {
+                            $board = Board::forge($this->getContext())
+                                ->getPostsByIP()
+                                ->setOptions('poster_ip', inet::ptod($this->getPost('ip')))
+                                ->setRadix($new_radix);
+
+                            foreach ($board->getCommentsUnsorted() as $comment) {
+                                try {
+                                    $comment = new Comment($this->getContext(), $comment);
+                                    $comment->delete();
+                                } catch (\Foolz\FoolFuuka\Model\BoardPostNotFoundException $e) {
+                                } // we don't want any errors here, just continue
+                            }
+                        }
+                    } else {
+                        $board = Board::forge($this->getContext())
+                            ->getPostsByIP()
+                            ->setOptions('poster_ip', inet::ptod($this->getPost('ip')))
+                            ->setRadix($this->radix);
+
+                        foreach ($board->getCommentsUnsorted() as $comment) {
+                            try {
+                                $comment = new Comment($this->getContext(), $comment);
+                                $comment->delete();
+                            } catch (\Foolz\FoolFuuka\Model\BoardPostNotFoundException $e) {
+                            } // we don't want any errors here, just continue
+                        }
+                    }
+                }
             } catch (\Foolz\FoolFuuka\Model\BanException $e) {
                 return $this->response->setData(['error' => $e->getMessage()])->setStatusCode(404);
+            } catch (\Exception $e) {
+                return $this->response->setData(['error' => $e->getMessage()])->setStatusCode(500);
             }
 
             return $this->response->setData(['success' => _i('This user was banned.')]);
@@ -669,6 +835,220 @@ class Chan extends Common
             }
 
             return $this->response->setData(['success' => _i('The locked status of this post has been updated.')]);
+        }
+
+        if ($this->getPost('action') === 'delete_all_report' || $this->getPost('action') === 'delete_all_ip_report') {
+            $reports = [];
+
+            try {
+                if ($this->getPost('action') === 'delete_all_ip_report' && $this->getPost('ip') !== "") {
+                    $reports = $this->report_coll->getByReporterIp(Inet::ptod($this->getPost('ip')));
+                } else {
+                    $reports = $this->report_coll->getAll();
+                }
+
+                foreach ($reports as $report) {
+                    $this->report_coll->delete($report->id);
+                }
+            } catch (\Foolz\FoolFuuka\Model\ReportException $e) {
+                return $this->response->setData(['error' => $e->getMessage()])->setStatusCode(500);
+            }
+            return $this->response->setData(['success' => _i('Successfully removed all reports')]);
+        }
+
+        if ($this->getPost('action') === 'delete_all_report_posts' || $this->getPost('action') === 'delete_all_report_posts_ip') {
+            $reports = [];
+
+            try {
+                if ($this->getPost('action') === 'delete_all_report_posts_ip' && $this->getPost('ip') !== "") {
+                    $reports = $this->report_coll->getByReporterIp(Inet::ptod($this->getPost('ip')));
+                } else {
+                    $reports = $this->report_coll->getAll();
+                }
+            } catch (\Foolz\FoolFuuka\Model\ReportException $e) {
+                return $this->response->setData(['error' => $e->getMessage()])->setStatusCode(500);
+            }
+
+            foreach($reports as $report) {
+                try {
+                    $radix = $this->radix_coll->getById($report->board_id);
+                    $comment = Board::forge($this->getContext())
+                        ->getPost()
+                        ->setOptions('doc_id', $report->doc_id)
+                        ->setRadix($radix)
+                        ->getComment();
+
+                    $comment = new Comment($this->getContext(), $comment);
+                    $comment->delete();
+                } catch (\Foolz\FoolFuuka\Model\BoardPostNotFoundException $e) {
+                    // in this case we can safely continue
+                } catch (\Foolz\FoolFuuka\Model\BoardException $e) {
+                    return $this->response->setData(['error' => $e->getMessage()]);
+                } catch (\Exception $e) {
+                    return $this->response->setData(['error' => $e->getMessage()]);
+                }
+            }
+            return $this->response->setData(['success' => _i('Successfully removed all reported posts')]);
+        }
+
+        if ($this->getPost('action') === 'delete_all_report_image' || $this->getPost('action') === 'delete_all_report_image_ip') {
+            $reports = [];
+
+            try {
+                if ($this->getPost('action') === 'delete_all_report_image_ip' && $this->getPost('ip') !== "") {
+                    $reports = $this->report_coll->getByReporterIp(Inet::ptod($this->getPost('ip')));
+                } else {
+                    $reports = $this->report_coll->getAll();
+                }
+            } catch (\Foolz\FoolFuuka\Model\ReportException $e) {
+                return $this->response->setData(['error' => $e->getMessage()])->setStatusCode(500);
+            }
+
+            foreach($reports as $report) {
+                try {
+                    $radix = $this->radix_coll->getById($report->board_id);
+                    $comment = Board::forge($this->getContext())
+                        ->getPost()
+                        ->setOptions('doc_id', $report->doc_id)
+                        ->setRadix($radix)
+                        ->getComment();
+
+                    $comment = new Comment($this->getContext(), $comment);
+                    if($comment->media === null) {
+                        continue;
+                    }
+                    $media = $this->media_factory->getByMediaId($radix, $comment->media->media_id);
+                    $media = new Media($this->getContext(), CommentBulk::forge($radix, null, $media));
+                    $media->delete(true, true, true);
+                } catch (\Foolz\FoolFuuka\Model\MediaNotFoundException $e) {
+                    return $this->response->setData(['error' => $e->getMessage()])->setStatusCode(404);
+                } catch (\Exception $e) {
+                    return $this->response->setData(['error' => $e->getMessage()])->setStatusCode(500);
+                }
+            }
+            return $this->response->setData(['success' => _i('Successfully removed all reported images')]);
+        }
+
+        if ($this->getPost('action') === 'ban_all_report_image' || $this->getPost('action') === 'ban_global_all_report_image' || $this->getPost('action') === 'ban_all_report_image_ip' || $this->getPost('action') === 'ban_global_all_report_image_ip') {
+            $reports = [];
+
+            try {
+                if ($this->getPost('ip') !== "") {
+                    $reports = $this->report_coll->getByReporterIp(Inet::ptod($this->getPost('ip')));
+                } else {
+                    $reports = $this->report_coll->getAll();
+                }
+            } catch (\Foolz\FoolFuuka\Model\ReportException $e) {
+                return $this->response->setData(['error' => $e->getMessage()])->setStatusCode(500);
+            }
+
+            $global = false;
+            if($this->getPost('action') === 'ban_global_all_report_image' || $this->getPost('action') === 'ban_global_all_report_image_ip') {
+                $global = true;
+            }
+
+            foreach($reports as $report) {
+                try {
+                    $radix = $this->radix_coll->getById($report->board_id);
+                    $comment = Board::forge($this->getContext())
+                        ->getPost()
+                        ->setOptions('doc_id', $report->doc_id)
+                        ->setRadix($radix)
+                        ->getComment();
+
+                    $comment = new Comment($this->getContext(), $comment);
+                    if($comment->media === null) {
+                        continue;
+                    }
+                    $media = $this->media_factory->getByMediaId($this->radix, $comment->media->media_id);
+                    $media = new Media($this->getContext(), CommentBulk::forge($radix, null, $media));
+                    $media->ban($global);
+                } catch (\Foolz\FoolFuuka\Model\MediaNotFoundException $e) {
+                    return $this->response->setData(['error' => $e->getMessage()])->setStatusCode(404);
+                } catch (\Exception $e) {
+                    return $this->response->setData(['error' => $e->getMessage()])->setStatusCode(500);
+                }
+            }
+            return $this->response->setData(['success' => _i('Successfully banned all reported images')]);
+        }
+
+        if ($this->getPost('action') === 'delete_user') {
+            try {
+                $board = Board::forge($this->getContext())
+                    ->getPostsByIP()
+                    ->setOptions('poster_ip', inet::ptod($this->getPost('ip')))
+                    ->setRadix($this->radix);
+
+                foreach ($board->getCommentsUnsorted() as $comment) {
+                    try {
+                        $comment = new Comment($this->getContext(), $comment);
+                        $comment->delete();
+                    } catch (\Foolz\FoolFuuka\Model\BoardPostNotFoundException $e) {
+                    } // we don't want any errors here, just continue
+                }
+            } catch (\Exception $e) {
+                return $this->response->setData(['error' => $e->getMessage()])->setStatusCode(500);
+            } // on first real error we need to discontinue
+            return $this->response->setData(['success' => _i('Successfully removed all posts by IP.')]);
+        }
+    }
+
+    public function post_edit_post()
+    {
+        if (!$this->checkCsrfToken()) {
+            return $this->response->setData(['error' => _i('The security token was not found. Please try again.')]);
+        }
+
+        if (!$this->getAuth()->hasAccess('comment.mod_capcode')) {
+            return $this->response->setData(['error' => _i('Access Denied.')])->setStatusCode(403);
+        }
+
+        if (!$this->check_board()) {
+            return $this->response->setData(['error' => _i('No board was selected.')])->setStatusCode(422);
+        }
+
+        if ($this->getPost('action') === 'edit_post') {
+            try {
+                $comment = Board::forge($this->getContext())
+                    ->getPost()
+                    ->setOptions('doc_id', $this->getPost('doc_id'))
+                    ->setRadix($this->radix)
+                    ->getComment();
+
+                $new_comment = [
+                    'title' => $this->getPost('subject'),
+                    'name' => $this->getPost('name'),
+                    'trip' => $this->getPost('trip'),
+                    'email' => $this->getPost('email'),
+                    'poster_country' => $this->getPost('poster_country'),
+                    'poster_hash' => $this->getPost('poster_hash'),
+                    'capcode' => $this->getPost('capcode'),
+                    'comment' => $this->getPost('comment')
+                ];
+
+                if($this->getPost('media_edit') == 'true') {
+                    $new_comment['media_filename'] = $this->getPost('filename');
+                    $new_comment['media_w'] = $this->getPost('media_w');
+                    $new_comment['media_h'] = $this->getPost('media_h');
+                    $new_comment['preview_w'] = $this->getPost('preview_w');
+                    $new_comment['preview_h'] = $this->getPost('preview_h');
+                    $new_comment['spoiler'] = $this->getPost('spoiler');
+                }
+
+                if($this->getPost('transparency') == 'true') {
+                    $new_comment['comment'] .= "\n\n[info](This post was modified by '".$this->preferences->get('foolframe.gen.website_title')."' staff on ".date("Y-m-d").".)[/info]";
+                }
+
+                // might want to do some validation here or in model
+
+                $comment = new Comment($this->getContext(), $comment);
+                $comment->commentUpdate($new_comment);
+            } catch (\Foolz\FoolFuuka\Model\BoardPostNotFoundException $e) {
+                return $this->response->setData(['error' => _i('Post not found.')]);
+            } catch (\Exception $e) {
+                return $this->response->setData(['error' => $e->getMessage()])->setStatusCode(500);
+            }
+            return $this->response->setData(['success' => _i('Successfully edited comment')]);
         }
     }
 }
