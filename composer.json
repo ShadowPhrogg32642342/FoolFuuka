@@ -11,6 +11,26 @@
         {
             "type": "vcs",
             "url": "https://github.com/mathjax/MathJax"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/pleebe/foolframe"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/FuzzyTowel/Plugin"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/FuzzyTowel/Cache"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/FuzzyTowel/Package"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/FuzzyTowel/Theme"
         }
     ],
     "require": {
