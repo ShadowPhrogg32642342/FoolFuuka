@@ -413,7 +413,7 @@ class Media extends Model
             ->execute()
             ->get();
 
-        if (!$before instanceof \Foolz\Plugin\Void) {
+        if (!$before instanceof \Foolz\Plugin\FoolVoid) {
             return $before;
         }
 
@@ -794,7 +794,7 @@ class Media extends Model
                 ->execute()
                 ->get();
 
-            if ($return instanceof \Foolz\Plugin\Void) {
+            if ($return instanceof \Foolz\Plugin\FoolVoid) {
                 if ($this->radix->getValue('enable_animated_gif_thumbs') && strtolower($file->getClientOriginalExtension()) === 'gif') {
                     exec(str_replace(' ', '\\ ', $this->preferences->get('foolframe.imagick.convert_path')) .
                         " " . $data['path'] . " -coalesce -treedepth 4 -colors 256 -quality 80 -background none " .
