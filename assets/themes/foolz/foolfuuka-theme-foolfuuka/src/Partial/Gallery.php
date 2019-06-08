@@ -33,16 +33,26 @@ class Gallery extends \Foolz\FoolFuuka\View\View
                     <span class="post_author"><?= (($p->email && $p->email !== 'noko') ? '<a href="mailto:' . rawurlencode($p->email) . '">' . $p->getNameProcessed() . '</a>' : $p->getNameProcessed()) ?></span>
                     <span class="post_trip"><?= $p->getTripProcessed() ?></span>
                     <span class="poster_hash"><?= ($p->getPosterHashProcessed()) ? 'ID:' . $p->getPosterHashProcessed() : '' ?></span>
-                    <?php if ($p->capcode == 'M') : ?>
-                    <span class="post_level post_level_moderator">## <?= _i('Mod') ?></span>
+                    <?php if ($p->capcode === 'M') : ?>
+                        <span class="post_level post_level_moderator">## <?= _i('Mod') ?></span>
                     <?php endif ?>
-                    <?php if ($p->capcode == 'A') : ?>
-                    <span class="post_level post_level_administrator">## <?= _i('Admin') ?></span>
+                    <?php if ($p->capcode === 'A') : ?>
+                        <span class="post_level post_level_administrator">## <?= _i('Admin') ?></span>
                     <?php endif ?>
-                    <?php if ($p->capcode == 'D') : ?>
-                    <span class="post_level post_level_developer">## <?= _i('Developer') ?></span>
+                    <?php if ($p->capcode === 'D') : ?>
+                        <span class="post_level post_level_developer">## <?= _i('Developer') ?></span>
+                    <?php endif ?>
+                    <?php if ($p->capcode === 'V') : ?>
+                        <span class="post_level post_level_verified">## <?= _i('Verified') ?></span>
+                    <?php endif ?>
+                    <?php if ($p->capcode === 'F') : ?>
+                        <span class="post_level post_level_founder">## <?= _i('Founder') ?></span>
+                    <?php endif ?>
+                    <?php if ($p->capcode === 'G') : ?>
+                        <span class="post_level post_level_manager">## <?= _i('Manager') ?></span>
                     <?php endif ?><br/>
                     <time datetime="<?= gmdate(DATE_W3C, $p->timestamp) ?>"><?= gmdate('D M d H:i:s Y', $p->timestamp) ?></time>
+                    <?php if ($p->getExtraData('since4pass') !== null) : ?><i class="icon-tag" title="<?= htmlspecialchars(sprintf(_i('Pass user since %s.'), $p->getExtraData('since4pass'))) ?>"></i><?php endif ?>
                     <span class="post_number"><a href="<?= $this->getUri()->create($radix->shortname . '/thread/' . $p->num) . '#' . $p->num ?>" data-function="highlight" data-post="<?= $p->num ?>">No.</a><a href="<?= $this->getUri()->create($radix->shortname . '/thread/' . $p->num) . '#q' . $p->num ?>" data-function="quote" data-post="<?= $p->num ?>"><?= $p->num ?></a></span>
                     <?php if ($p->poster_country !== null) : ?><span class="post_type"><span title="<?= e($p->poster_country_name) ?>" class="flag flag-<?= strtolower($p->poster_country) ?>"></span></span><?php endif; ?>
                     <span class="post_controls"><a href="<?= $this->getUri()->create($radix->shortname . '/thread/' . $p->num) ?>" class="btnr parent"><?= _i('View') ?></a><a href="<?= $this->getUri()->create($radix->shortname . '/thread/' . $p->num) . '#reply' ?>" class="btnr parent"><?= _i('Reply') ?></a><?= (isset($p->count_all) && $p->count_all > 50) ? '<a href="' . $this->getUri()->create($radix->shortname . '/last50/' . $p->num) . '" class="btnr parent">' . _i('Last 50') . '</a>' : '' ?><?php if ($radix->archive == 1) : ?><a href="http://boards.4chan.org/<?= $radix->shortname . '/thread/' . $p->num ?>" class="btnr parent"><?= _i('Original') ?></a><?php endif; ?><a href="<?= $this->getUri()->create($radix->shortname . '/report/' . $p->doc_id) ?>" class="btnr parent" data-function="report" data-post="<?= $p->doc_id ?>" data-post-id="<?= $p->num ?>" data-board="<?= htmlspecialchars($p->radix->shortname) ?>" data-controls-modal="post_tools_modal" data-backdrop="true" data-keyboard="true"><?= _i('Report') ?></a><?php if ($this->getAuth()->hasAccess('maccess.mod')) : ?><a href="<?= $this->getUri()->create($radix->shortname . '/delete/' . $p->doc_id) ?>" class="btnr parent" data-function="delete" data-post="<?= $p->doc_id ?>" data-post-id="<?= $p->num ?>" data-board="<?= htmlspecialchars($p->radix->shortname) ?>" data-controls-modal="post_tools_modal" data-backdrop="true" data-keyboard="true"><?= _i('Delete') ?></a><?php endif; ?></span>
@@ -81,9 +91,10 @@ class Gallery extends \Foolz\FoolFuuka\View\View
             <?php endif; ?>
             <div class="thread_tools_bottom">
                 <?php if (isset($p->comment->nreplies)) : ?>
-                <?= _i('Replies') ?> : <?= ($p->nreplies - 1) ?> | <?= _i('Images') ?>: <?= ($p->nimages - ($p_media !== null ? 1 : 0)) ?>
+                <?= _i('Replies') ?>: <?= ($p->nreplies - 1) ?> | <?= _i('Images') ?>: <?= ($p->nimages - ($p_media !== null ? 1 : 0)) ?> | <?= _i('Posters') ?>: <?= ($p->getExtraData('uniqueIps') ? $p->getExtraData('uniqueIps') : '?') ?>
                 <?php endif; ?>
-                <?php if ($p->deleted == 1) : ?><span class="post_type"><img src="<?= $this->getAssetManager()->getAssetLink('images/icons/file-delete-icon.png'); ?>" title="<?= htmlspecialchars(_i('This post was deleted from 4chan manually')) ?>"/></span><?php endif ?>
+                <span class="post_type"><?php if ($p->deleted && !$p->timestamp_expired) : ?><img src="<?= $this->getAssetManager()->getAssetLink('images/icons/file-delete-icon.png'); ?>" title="<?= htmlspecialchars(_i('This post was deleted manually')) ?>"/><?php endif ?>
+                <?php if ($p->deleted && $p->timestamp_expired) : ?><img src="<?= $this->getAssetManager()->getAssetLink('images/icons/file-delete-icon.png'); ?>" title="<?= htmlspecialchars(_i('This post was deleted on %s.', gmdate('M d, Y \a\t H:i:s e', $p->timestamp_expired))) ?>"/><?php endif ?></span>
                 <?php if (isset($p_media) && $p_media->spoiler == 1) : ?><span class="post_type"><img src="<?= $this->getAssetManager()->getAssetLink('images/icons/spoiler-icon.png'); ?>" title="<?= htmlspecialchars(_i('This post contains a spoiler image')) ?>"/></span><?php endif ?>
             </div>
         </article>

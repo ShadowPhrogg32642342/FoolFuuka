@@ -34,14 +34,14 @@ class BoardComment extends \Foolz\FoolFuuka\View\View
                 <button class="btn-toggle-post" data-function="showPost" data-board="<?= $p->radix->shortname ?>"  data-doc-id="<?= $p->doc_id ?>" data-thread-num="<?= $p->thread_num ?>"><i class="icon-plus"></i></button>
                 <?php if ($p->email && $p->email !== 'noko') : ?><a href="mailto:<?= rawurlencode($p->email) ?>"><?php endif; ?><span class="post_author"><?= $p->getNameProcessed() ?></span><?= ($p->getNameProcessed() && $p->getTripProcessed()) ? ' ' : '' ?><span class="post_tripcode"><?= $p->getTripProcessed() ?></span><?php if ($p->email && $p->email !== 'noko') : ?></a><?php endif ?>
         </div>
-        <article class="<?php if ($is_full_op) : ?>clearfix thread<?php else: ?>post<?php endif; ?> doc_id_<?= $p->doc_id ?><?php if ($p->subnum > 0) : ?> post_ghost<?php endif; ?><?php if ($p->thread_num === $p->num) : ?> post_is_op<?php endif; ?><?php if ( !is_null($p_media)) : ?> has_image<?php endif; ?>" id="<?= $num ?>" <?php if ($is_full_op) : ?>data-doc-id="<?= $p->doc_id ?>" data-thread-num="<?= $p->thread_num ?>"<?php endif; ?>>
+        <article class="<?php if ($is_full_op) : ?>clearfix thread<?php else: ?>post<?php endif; ?> doc_id_<?= $p->doc_id ?><?php if ($p->subnum > 0) : ?> post_ghost<?php endif; ?><?php if ($p->thread_num === $p->num) : ?> post_is_op<?php endif; ?><?php if ( !is_null($p_media)) : ?> has_image<?php endif; ?>" id="<?= $num ?>" data-board="<?= $p->radix->shortname ?>" data-doc-id="<?= $p->doc_id ?>" <?php if ($is_full_op) : ?>data-thread-num="<?= $p->thread_num ?>"<?php endif; ?>>
             <?php if ($is_full_op) : ?>
                 <?php if ($thread_id === 0) : ?>
                     <div class="stub pull-left">
                         <button class="btn-toggle-post" data-function="hideThread" data-board="<?= $p->radix->shortname ?>" data-doc-id="<?= $p->doc_id ?>"><i class="icon-minus"></i></button>
                     </div>
                 <?php else : ?>
-                    <div class="pull-right" title="Post Count / File Count">[<?= $nreplies ?> / <?= $nimages ?>]</div>
+                    <div class="pull-right" title="<?= _i('Post Count') ?> / <?= _i('File Count') ?> / <?= _i('Posters') ?>">[<?= $nreplies ?> / <?= $nimages ?> / <?= $p->getExtraData('uniqueIps') ? $p->getExtraData('uniqueIps') : '?' ?>]</div>
                 <?php endif; ?>
                 <?php \Foolz\Plugin\Hook::forge('foolfuuka.themes.default_after_op_open')->setObject($this)->setParam('board', $p->radix)->execute(); ?>
             <?php else: ?>
@@ -134,14 +134,18 @@ class BoardComment extends \Foolz\FoolFuuka\View\View
                                 <?php if ($p->capcode === 'M') : ?><span class="post_level post_level_moderator">## <?= _i('Mod') ?></span><?php endif ?>
                                 <?php if ($p->capcode === 'A') : ?><span class="post_level post_level_administrator">## <?= _i('Admin') ?></span><?php endif ?>
                                 <?php if ($p->capcode === 'D') : ?><span class="post_level post_level_developer">## <?= _i('Developer') ?></span><?php endif ?>
+                                <?php if ($p->capcode === 'V') : ?><span class="post_level post_level_verified">## <?= _i('Verified') ?></span><?php endif ?>
+                                <?php if ($p->capcode === 'F') : ?><span class="post_level post_level_founder">## <?= _i('Founder') ?></span><?php endif ?>
+                                <?php if ($p->capcode === 'G') : ?><span class="post_level post_level_manager">## <?= _i('Manager') ?></span><?php endif ?>
                             <?php endif; ?>
                         </span>
                         <span class="time_wrap">
                             <time datetime="<?= gmdate(DATE_W3C, $p->timestamp) ?>" <?php if ($p->radix->archive) : ?> title="<?= _i('4chan Time') . ': ' . $p->getFourchanDate() ?>"<?php endif; ?>><?= gmdate('D d M Y H:i:s', $p->timestamp) ?></time>
                         </span>
-                        <a href="<?= $this->getUri()->create([$p->radix->shortname, $controller_method, $p->thread_num]) . '#'  . $num ?>" data-post="<?= $num ?>" data-function="highlight">No.</a><a href="<?= $this->getUri()->create([$p->radix->shortname, $controller_method, $p->thread_num]) . '#q' . $num ?>" data-post="<?= str_replace('_', ',', $num) ?>" data-function="quote"><?= str_replace('_', ',', $num) ?></a>
+                        <a href="<?= $this->getUri()->create([$p->radix->shortname, $controller_method, $p->thread_num]) . '#'  . $num ?>" data-post="<?= $num ?>" data-function="highlight" title="Link to this post">No.</a><a href="<?= $this->getUri()->create([$p->radix->shortname, $controller_method, $p->thread_num]) . '#q' . $num ?>" data-post="<?= str_replace('_', ',', $num) ?>" data-function="quote" title="Reply to this post"><?= str_replace('_', ',', $num) ?></a>
 
                         <span class="post_type">
+                            <?php if ($p->getExtraData('since4pass') !== null) : ?><i class="icon-tag" title="<?= htmlspecialchars(sprintf(_i('Pass user since %s.'), $p->getExtraData('since4pass'))) ?>"></i><?php endif ?>
                             <?php if ($p->poster_country !== null) : ?><span title="<?= e($p->poster_country_name) ?>" class="flag flag-<?= strtolower($p->poster_country) ?>"></span><?php endif; ?>
                             <?php if ($p->subnum) : ?><i class="icon-comment-alt" title="<?= htmlspecialchars(_i('This post was submitted as a "ghost" reply.')) ?>"></i><?php endif ?>
                             <?php if (isset($p_media) && $p_media->spoiler) : ?><i class="icon-eye-close" title="<?= htmlspecialchars(_i('The image in this post has been marked spoiler.')) ?>"></i><?php endif ?>
@@ -170,7 +174,7 @@ class BoardComment extends \Foolz\FoolFuuka\View\View
                 <?php if ($p_media !== null && $p_media->getMediaStatus($this->getRequest()) === 'normal' && $p->radix->getValue('display_exif') && $p_media->exif !== NULL) : ?>
                     <div class="exif">[Exif data available. <a data-function="toggleExif" data-post="<?= $p->doc_id ?>">Click here to show/hide</a>.]</div>
                     <table class="exiftable <?= $p->doc_id ?>" style="display:none;"><tbody>
-                        <?php foreach (json_decode($p_media->exif) as $a => $b) : ?>
+                        <?php foreach ($p_media->getExifData() as $a => $b) : ?>
                             <?php if(is_object($b)) : ?>
                                 <?php foreach ($b as $c => $d) : ?>
                                     <tr><td><?= htmlentities($a)," ",htmlentities($c) ?></td><td><?= htmlentities($d) ?></td></tr>
@@ -186,38 +190,27 @@ class BoardComment extends \Foolz\FoolFuuka\View\View
                         <?php endforeach ?>
                         </tbody></table>
                 <?php endif; ?>
-                <?php if ($is_full_op && isset($omitted) && $omitted > 0) : ?>
-                    <span class="omitted">
-                    <a style="display:inline-block" href="<?= $this->getUri()->create(array($p->radix->shortname, $controller_method, $p->thread_num)) ?>" data-function="expandThread" data-thread-num="<?= $p->thread_num ?>"><i class="icon icon-resize-full"></i></a>
-                    <span class="omitted_text">
-                    <span class="omitted_posts"><?= $omitted ?></span> <?= _n('post', 'posts', $omitted) ?>
-                    <?php if (isset($images_omitted) && $images_omitted > 0) : ?>
-                        <?= _i('and') ?> <span class="omitted_images"><?= $images_omitted ?></span> <?= _n('image', 'images', $images_omitted) ?>
-                    <?php endif; ?>
-                    <?= _n('omitted', 'omitted', $omitted + $images_omitted) ?>
-                    </span>
-                    </span>
-                <?php endif; ?>
                 <?php if ($this->getAuth()->hasAccess('maccess.mod')) :
                 $poster_ip = Inet::dtop($p->poster_ip); /* only dtop once */?>
-                <div class="btn-group" style="clear:both; padding:5px 0 0 0;">
+                <div class="btn-group post_mod">
                     <button class="btn btn-mini" data-function="activateModeration"><?= _i('Mod') ?><?php if ($p->poster_ip) echo ' ' . $poster_ip ?></button>
                 </div>
-                <div class="btn-group post_mod_controls" style="clear:both; padding:5px 0 0 5px;">
+                <div class="btn-group post_mod_controls">
                     <button class="btn btn-mini" data-post="<?= $p->doc_id ?>" data-post-id="<?= $num ?>" data-board="<?= htmlspecialchars($p->radix->shortname) ?>" data-controls-modal="post_tools_modal" data-backdrop="true" data-keyboard="true" data-function="editPost"><?= _i('Edit Post') ?></button>
+                    <button class="btn btn-mini" data-function="addBulkMod"><?= _i('Bulk Mod') ?></button>
                     <?php if ($p->op) : ?>
                     <button class="btn btn-mini" data-function="mod" data-board="<?= $p->radix->shortname ?>" data-id="<?= $p->doc_id ?>" data-action="toggle_sticky"><?= _i('Toggle Sticky') ?></button>
                     <button class="btn btn-mini" data-function="mod" data-board="<?= $p->radix->shortname ?>" data-id="<?= $p->doc_id ?>" data-action="toggle_locked"><?= _i('Toggle Locked') ?></button>
                     <?php endif; ?>
-                    <button class="btn btn-mini" data-function="mod" data-board="<?= $p->radix->shortname ?>" data-board-url="<?= $this->getUri()->create([$p->radix->shortname]) ?>" data-id="<?= $p->doc_id ?>" data-action="delete_post"><?= _i('Delete Post') ?></button>
+                    <button class="btn btn-mini" data-function="mod" data-board="<?= $p->radix->shortname ?>" data-board-url="<?= $this->getUri()->create([$p->radix->shortname]) ?>" data-id="<?= $p->doc_id ?>" data-action="delete_post"><?= _i('Delete ' . ($p->op ? 'thread' : 'post')) ?></button>
                     <?php if ( !is_null($p_media)) : ?>
                         <button class="btn btn-mini" data-function="mod" data-board="<?= $p->radix->shortname ?>" data-id="<?= $p_media->media_id ?>" data-doc-id="<?= $p->doc_id ?>" data-action="delete_image"><?= _i('Delete Image') ?></button>
-                        <button class="btn btn-mini" data-function="mod" data-board="<?= $p->radix->shortname ?>" data-id="<?= $p_media->media_id ?>" data-doc-id="<?= $p->doc_id ?>" data-action="ban_image_local"><?= _i('Ban Image') ?></button>
-                        <button class="btn btn-mini" data-function="mod" data-board="<?= $p->radix->shortname ?>" data-id="<?= $p_media->media_id ?>" data-doc-id="<?= $p->doc_id ?>" data-action="ban_image_global"><?= _i('Ban Image Globally') ?></button>
+                        <button class="btn btn-mini" data-function="mod" data-board="<?= $p->radix->shortname ?>" data-id="<?= $p_media->media_id ?>" data-doc-id="<?= $p->doc_id ?>" data-action="ban_image"><?= _i('Ban Image') ?></button>
+                        <button class="btn btn-mini" data-function="mod" data-board="<?= $p->radix->shortname ?>" data-id="<?= $p_media->media_id ?>" data-doc-id="<?= $p->doc_id ?>" data-global="true" data-action="ban_image"><?= _i('Ban Image Globally') ?></button>
                     <?php endif; ?>
                     <?php if ($p->poster_ip) : ?>
                         <button class="btn btn-mini" data-function="mod" data-board="<?= $p->radix->shortname ?>" data-ip="<?= $poster_ip ?>" data-action="delete_user"><?= _i('Delete All Post By IP') ?></button>
-                        <button class="btn btn-mini" data-function="ban" data-controls-modal="post_tools_modal" data-backdrop="true" data-keyboard="true" data-board="<?= $p->radix->shortname ?>" data-ip="<?= $poster_ip ?>" data-action="ban_user"><?= _i('Ban IP:') . ' ' . $poster_ip ?></button>
+                        <button class="btn btn-mini" data-function="ban" data-controls-modal="post_tools_modal" data-backdrop="true" data-keyboard="true" data-board="<?= $p->radix->shortname ?>" data-post="<?= $p->doc_id ?>" data-ip="<?= $poster_ip ?>" data-action="ban_user"><?= _i('Ban IP:') . ' ' . $poster_ip ?></button>
                         <button class="btn btn-mini" data-function="searchUser" data-board="<?= $p->radix->shortname ?>" data-id="<?= $p->doc_id ?>" data-poster-ip="<?= $poster_ip ?>"><?= _i('Search IP') ?></button>
                         <?php if ($this->getPreferences()->get('foolfuuka.sphinx.global')) : ?>
                             <button class="btn btn-mini" data-function="searchUserGlobal" data-board="<?= $p->radix->shortname ?>" data-id="<?= $p->doc_id ?>" data-poster-ip="<?= $poster_ip ?>"><?= _i('Search IP Globally') ?></button>
@@ -235,7 +228,7 @@ class BoardComment extends \Foolz\FoolFuuka\View\View
                                 <div class="btn-group">
                                     <button class="btn btn-mini" data-function="ban" data-controls-modal="post_tools_modal" data-backdrop="true" data-keyboard="true" data-board="<?= $p->radix->shortname ?>" data-ip="<?= $report_ip ?>" data-action="ban_user"><?= _i('Ban IP:') . ' ' . $report_ip ?></button>
                                     <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-action="delete_report"><?= _i('Delete Report') ?></button>
-                                    <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-action="delete_all_report"><?= _i('Delete All Reports') ?></button>
+                                    <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-action="delete_all_reports"><?= _i('Delete All Reports') ?></button>
                                 </div>
                                 <div class="btn-group" style="clear:both;">
                                     <button class="btn btn-mini" data-function="activateExtraMod"><?= _i('Extra') ?></button>
@@ -243,16 +236,16 @@ class BoardComment extends \Foolz\FoolFuuka\View\View
                                 <div class="post_extra_mod" style="clear:both;">
                                     <div class="btn-group">
                                         <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-action="delete_all_report_posts"><?= _i('Delete All Reported Posts') ?></button>
-                                        <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-action="delete_all_report_image"><?= _i('Delete All Reported Images') ?></button>
-                                        <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-action="ban_all_report_image"><?= _i('Ban All Reported Images') ?></button>
-                                        <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-action="ban_global_all_report_image"><?= _i('Globally Ban All Reported Images') ?></button>
+                                        <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-action="delete_all_report_images"><?= _i('Delete All Reported Images') ?></button>
+                                        <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-action="ban_all_report_images"><?= _i('Ban All Reported Images') ?></button>
+                                        <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-global="true" data-action="ban_all_report_images"><?= _i('Globally Ban All Reported Images') ?></button>
                                     </div>
                                     <div class="btn-group">
-                                        <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-ip="<?= $report_ip ?>" data-action="delete_all_ip_report"><?= _i('Delete All Reports From This IP') ?></button>
-                                        <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-ip="<?= $report_ip ?>" data-action="delete_all_report_posts_ip"><?= _i('Delete All Posts Reported By This IP') ?></button>
-                                        <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-ip="<?= $report_ip ?>" data-action="delete_all_report_image_ip"><?= _i('Delete All Images Reported By This IP') ?></button>
-                                        <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-ip="<?= $report_ip ?>" data-action="ban_all_report_image_ip"><?= _i('Ban All Images Reported By This IP') ?></button>
-                                        <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-ip="<?= $report_ip ?>" data-action="ban_global_all_report_image_ip"><?= _i('Globally Ban All Images Reported By This IP') ?></button>
+                                        <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-ip="<?= $report_ip ?>" data-action="delete_all_reports"><?= _i('Delete All Reports From This IP') ?></button>
+                                        <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-ip="<?= $report_ip ?>" data-action="delete_all_report_posts"><?= _i('Delete All Posts Reported By This IP') ?></button>
+                                        <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-ip="<?= $report_ip ?>" data-action="delete_all_report_images"><?= _i('Delete All Images Reported By This IP') ?></button>
+                                        <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-ip="<?= $report_ip ?>" data-action="ban_all_report_images"><?= _i('Ban All Images Reported By This IP') ?></button>
+                                        <button class="btn btn-mini" data-function="mod" data-id="<?= $report->id ?>" data-board="<?= $p->radix->shortname ?>" data-ip="<?= $report_ip ?>" data-global="true" data-action="ban_all_report_images"><?= _i('Globally Ban All Images Reported By This IP') ?></button>
                                     </div>
                                 </div>
                             </div>
@@ -260,6 +253,18 @@ class BoardComment extends \Foolz\FoolFuuka\View\View
                     <?php endforeach; ?>
                 <?php endif; ?>
                 <?php endif; ?>
+        <?php if ($is_full_op && isset($omitted) && $omitted > 0) : ?>
+        <span class="omitted">
+            <a style="display:inline-block" href="<?= $this->getUri()->create(array($p->radix->shortname, $controller_method, $p->thread_num)) ?>" data-function="expandThread" data-thread-num="<?= $p->thread_num ?>"><i class="icon icon-resize-full"></i></a>
+            <span class="omitted_text">
+                <span class="omitted_posts"><?= $omitted ?></span> <?= _n('post', 'posts', $omitted) ?>
+                <?php if (isset($images_omitted) && $images_omitted > 0) : ?>
+                    <?= _i('and') ?> <span class="omitted_images"><?= $images_omitted ?></span> <?= _n('image', 'images', $images_omitted) ?>
+                <?php endif; ?>
+                <?= _n('omitted', 'omitted', $omitted + $images_omitted) ?>
+            </span>
+        </span>
+    <?php endif; ?>
         </div>
         <?php if (!$is_full_op) : ?></article><?php endif; ?>
         <?php

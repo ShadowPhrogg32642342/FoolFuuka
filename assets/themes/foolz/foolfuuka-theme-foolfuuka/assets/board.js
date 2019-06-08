@@ -373,6 +373,7 @@ var bindFunctions = function()
 				id: el.data('id'),
 				ip: el.data('ip'),
 				action: el.data('action'),
+				global: el.data('global'),
 				theme: backend_vars.selected_theme
 			};
 			_data[backend_vars.csrf_token_key] = getCookie(backend_vars.csrf_token_key);
@@ -410,8 +411,7 @@ var bindFunctions = function()
 						case 'ban_user':
 							jQuery('.doc_id_' + el.data('id')).find('[data-action=ban_user]').text('Banned');
 							break;
-						case 'ban_image_global':
-						case 'ban_image_local':
+						case 'ban_image':
 							jQuery('.doc_id_' + el.data('doc-id')).find('.thread_image_box:eq(0) img')
 								.attr('src', backend_vars.images['banned_image'])
 								.css({
@@ -419,7 +419,7 @@ var bindFunctions = function()
 									height: backend_vars.images['banned_image_height']
 								});
 							break;
-						case 'delete_all_report':
+						case 'delete_all_reports':
 							$(".report_reason").each(function(){
 								$(this).remove();
 							});
@@ -480,20 +480,47 @@ var bindFunctions = function()
 			modal.find(".modal-password").val(backend_vars.user_pass);
 		},
 
-
 		report: function(el, post, event)
 		{
 			var modal = jQuery("#post_tools_modal");
 			modal.find(".title").html('Report &raquo; Post No.' + el.data("post-id"));
 			modal.find(".modal-error").html('');
 			modal.find(".modal-loading").hide();
-			modal.find(".modal-information").html('\
+			modal.find(".modal-information").html('<a class="btn secondary" href="#" data-function="addBulkReport">Report Multiple</a>\
 			<input type="hidden" class="modal-post-id" value="' + el.data("post") + '" />\n\
 			<input type="hidden" class="modal-board" value="' + el.data("board") + '" />\n\
 			<span class="modal-field">Comment</span>\n\
 			<textarea class="modal-comment"></textarea>\n\
 			<span class="model-note">Note: Requests for content removal and take-downs must be sent via email.</span>');
 			modal.find(".submitModal").data("action", 'report');
+		},
+
+		addBulkReport: function(el, post, event) {
+			jQuery('article.thread, article.post').each(function () {
+				if (typeof jQuery(this).attr('data-board') != 'undefined') {
+					jQuery(this).find('a[data-function=report]:eq(0)').replaceWith('<input class="bulkreportselect" type="checkbox" ' +
+						'data-board="' + jQuery(this).attr('data-board') + '" ' +
+						'data-num="' + jQuery(this).attr('id') + '" data-doc-id="' + jQuery(this).attr('data-doc-id') + '">' +
+						'<a href="#" class="btnr parent" data-controls-modal="post_tools_modal" data-backdrop="true" ' +
+						'data-keyboard="true" data-function="bulkReport">Report Selected</a>');
+				}
+			});
+			el.closest(".modal").modal('hide');
+		},
+
+		bulkReport: function(el, post, event) {
+			var modal = jQuery("#post_tools_modal");
+			modal.find(".title").html('Report Posts');
+			modal.find(".modal-error").html('');
+			modal.find(".modal-loading").hide();
+			modal.find(".modal-information").html('Selected posts: <br>');
+			jQuery('.bulkreportselect:checked').each(function () {
+				modal.find(".modal-information").append('>>>/' + $(this).attr('data-board') + '/' + $(this).attr('data-num') + '<br>');
+			});
+			modal.find(".modal-information").append('<br><span class="modal-field">Comment</span>\n\
+			<textarea class="modal-comment"></textarea>\n\
+			<span class="model-note">Note: Requests for content removal and take-downs must be sent via email.</span>');
+			modal.find(".submitModal").data("action", 'bulk-report');
 		},
 
 		ban: function(el, post, event)
@@ -503,6 +530,7 @@ var bindFunctions = function()
 			modal.find(".modal-error").html('');
 			modal.find(".modal-loading").hide();
 			modal.find(".modal-information").html('\
+			<input type="hidden" class="modal-post-id" value="' + el.data("post") + '" />\n\
 			<span class="modal-label">IP</span>\n\
 			<input type="text" class="modal-ip" value="' + el.data("ip") + '" /><br/>\n\
 			<span class="modal-label">Days</span>\n\
@@ -514,7 +542,8 @@ var bindFunctions = function()
 			<span class="modal-field">Comment</span>\n\
 			<input type="hidden" class="modal-board" value="' + el.data("board") + '" />\n\
 			<textarea class="modal-comment"></textarea>\
-			<label><input type="checkbox" name="delete_user"> Delete all posts by this IP</label>');
+			<label><input type="checkbox" name="delete_user"> Delete all posts by this IP</label>\n\
+			<label><input type="checkbox" name="ban_public"> Public ban message / (USER WAS BANNED FOR THIS POST)</label>');
 			modal.find(".submitModal").data("action", 'ban');
 		},
 
@@ -524,7 +553,8 @@ var bindFunctions = function()
 			modal.find(".title").html('Edit Post No. ' + el.data("post-id"));
 			modal.find(".modal-error").html('');
 			modal.find(".modal-loading").show();
-			modal.find(".modal-information").html('<fieldset>\
+			modal.find(".modal-information").html('<a class="btn secondary" href="#" data-function="addBulkEdit">Bulk Edit</a>\
+			<fieldset>\
 				<input type="hidden" class="modal-post-id" value="' + el.data("post") + '" />\n\
 				<input type="hidden" class="modal-board" value="' + el.data("board") + '" />\n\
 				<div class="input-prepend">\
@@ -542,9 +572,12 @@ var bindFunctions = function()
 				<div class="input-prepend">\
 				<label class="add-on" for="capcode">Capcode</label><select name="edit-capcode" id="capcode">\
 				<option value="N">Normal</option>\
+				<option value="V">Verified</option>\
 				<option value="M">Moderator</option>\
 				<option value="A">Administrator</option>\
-				<option value="D">Developer</option></select></div>\
+				<option value="D">Developer</option>\
+				<option value="F">Founder</option>\
+				<option value="G">Manager</option></select></div>\
 				<textarea name="edit-comment" placeholder="" rows="3" style="height:132px; width:320px;"></textarea>\
 				<label><input type="checkbox" name="transparency"> Include transparency message</label>');
 			modal.find(".submitModal").data("action", 'edit-post');
@@ -592,13 +625,105 @@ var bindFunctions = function()
 				},
 				error: function() {
 					console.log('post not found');
-					modal.closeModal();
+					el.closest(".modal").modal('hide');
 				},
 				complete: function() {
 					modal.find(".modal-information").append('</fieldset>');
 					modal.find(".modal-loading").hide();
 				}
 			});
+		},
+
+		addBulkEdit: function(el, post, event) {
+			jQuery('article.thread, article.post').each(function () {
+				if (typeof jQuery(this).attr('data-board') != 'undefined') {
+					jQuery('<input class="bulkselect" type="checkbox" data-board="' + jQuery(this).attr('data-board') + '" ' +
+						'data-num="' + jQuery(this).attr('id') + '" data-doc-id="' + jQuery(this).attr('data-doc-id') + '">' +
+						'<a href="#" class="btnr parent" data-controls-modal="post_tools_modal" data-backdrop="true" ' +
+						'data-keyboard="true" data-function="bulkEdit">Edit Selected</a>')
+						.prependTo($(this).find('.post_data:first'));
+				}
+			});
+			el.closest(".modal").modal('hide');
+		},
+
+		bulkEdit: function(el, post, event) {
+			var modal = jQuery("#post_tools_modal");
+			modal.find(".title").html('Edit Posts');
+			modal.find(".modal-error").html('');
+			modal.find(".modal-loading").hide();
+			modal.find(".modal-information").html('This will only modify specified fields. Leave blank to not modify that field.<br><br>' +
+				'Selected posts: <br>');
+			jQuery('.bulkselect:checked').each(function () {
+				modal.find(".modal-information").append('>>>/' + $(this).attr('data-board') + '/' + $(this).attr('data-num') + '<br>');
+			});
+			modal.find(".modal-information").append('<br><fieldset>\
+				<div class="input-prepend">\
+				<label class="add-on" for="subject">Subject</label><input name="edit-subject" id="subject" type="text"></div>\
+				<div class="input-prepend">\
+				<label class="add-on" for="name">Name</label><input name="edit-name" id="name" type="text"></div>\
+				<div class="input-prepend">\
+				<label class="add-on" for="trip">Tripcode (final)</label><input name="edit-trip" id="trip" type="text"></div>\
+				<div class="input-prepend">\
+				<label class="add-on" for="email">E-Mail</label><input name="edit-email" id="email" type="text"></div>\
+				<div class="input-prepend">\
+				<label class="add-on" for="country">Country</label><input name="edit-country" id="country" type="text"></div>\
+				<div class="input-prepend">\
+				<label class="add-on" for="poster_hash">Hash</label><input name="edit-poster_hash" id="poster_hash" type="text"></div>\
+				<div class="input-prepend">\
+				<label class="add-on" for="capcode">Capcode</label><select name="edit-capcode" id="capcode">\
+				<option value="N">Normal</option>\
+				<option value="V">Verified</option>\
+				<option value="M">Moderator</option>\
+				<option value="A">Administrator</option>\
+				<option value="D">Developer</option>\
+				<option value="F">Founder</option>\
+				<option value="G">Manager</option></select></div>\
+				<textarea name="edit-comment" placeholder="" rows="3" style="height:132px; width:320px;"></textarea>\
+				<p>Media</p>\
+				<div class="input-prepend">\
+				<label class="add-on" for="filename">Filename</label><input name="edit-filename" id="filename" type="text"></div>\
+				<div class="input-prepend">\
+				<label class="add-on" for="media_w">Media Width</label><input name="edit-media_w" id="media_w" type="text"></div>\
+				<div class="input-prepend">\
+				<label class="add-on" for="media_h">Media Height</label><input name="edit-media_h" id="media_h" type="text"></div>\
+				<div class="input-prepend">\
+				<label class="add-on" for="preview_w">Preview Width</label><input name="edit-preview_w" id="preview_w" type="text"></div>\
+				<div class="input-prepend">\
+				<label class="add-on" for="preview_h">Preview Height</label><input name="edit-preview_h" id="preview_h" type="text"></div>\
+				<label for="spoiler"><input type="checkbox" id="spoiler" value="true" name="edit-spoiler"> Spoiler Image</label>');
+			modal.find(".submitModal").data("action", 'bulk-edit');
+		},
+
+		addBulkMod: function(el, post, event) {
+			jQuery('article.thread, article.post').each(function () {
+				if (typeof jQuery(this).attr('data-board') != 'undefined') {
+					jQuery(this).find('a[data-function=delete]:eq(0)').replaceWith('<input class="bulkmodselect" type="checkbox" ' +
+						'data-board="' + jQuery(this).attr('data-board') + '" ' +
+						'data-num="' + jQuery(this).attr('id') + '" data-doc-id="' + jQuery(this).attr('data-doc-id') + '">' +
+						'<a href="#" class="btnr parent" data-controls-modal="post_tools_modal" data-backdrop="true" ' +
+						'data-keyboard="true" data-function="bulkMod">Mod Selected</a>');
+				}
+			});
+		},
+
+		bulkMod: function(el, post, event) {
+			var modal = jQuery("#post_tools_modal");
+			modal.find(".title").html('Mod Posts');
+			modal.find(".modal-error").html('');
+			modal.find(".modal-loading").hide();
+			modal.find(".modal-information").html('Selected posts: <br>');
+			jQuery('.bulkmodselect:checked').each(function () {
+				modal.find(".modal-information").append('>>>/' + $(this).attr('data-board') + '/' + $(this).attr('data-num') + '<br>');
+			});
+			modal.find(".modal-information").append('<br>Select action<br>' +
+				'<form>\
+					<label class="radio"><input type="radio" name="modaction" value="delete"> Delete Posts</label>\
+					<label class="radio"><input type="radio" name="modaction" value="delete_image"> Delete Images</label>\
+					<label class="radio"><input type="radio" name="modaction" value="ban_image"> Ban Images</label>\
+					<label class="radio"><input type="radio" name="modaction" value="ban_global"> Ban Images Globally</label>\
+				</form>');
+			modal.find(".submitModal").data("action", 'bulk-mod');
 		},
 
 		submitModal: function(el, post, event)
@@ -647,10 +772,14 @@ var bindFunctions = function()
 					board_ban: modal.find('input:radio[name=board]:checked').val(),
 					length: modal.find('.modal-days').val() * 24 * 60 * 60,
 					ip: modal.find('.modal-ip').val(),
-					reason: modal.find('.modal-comment').val()
+					reason: modal.find('.modal-comment').val(),
+					doc_id: _doc_id
 				};
 				if ($('input[name=delete_user]').is(':checked')) {
 					_data.delete_user = true;
+				}
+				if ($('input[name=ban_public]').is(':checked')) {
+					_data.ban_public = true;
 				}
 			}
 			else if (action == 'edit-post')
@@ -687,6 +816,73 @@ var bindFunctions = function()
 					}
 				}
 			}
+			else if (action == 'bulk-edit') {
+				_href = backend_vars.api_url + '_/api/chan/edit_post/';
+
+				_data = {
+					action: 'bulk_edit',
+					subject: modal.find("input[name='edit-subject']").val(),
+					name: modal.find("input[name='edit-name']").val(),
+					trip: modal.find("input[name='edit-trip']").val(),
+					email: modal.find("input[name='edit-email']").val(),
+					poster_country: modal.find("input[name='edit-country']").val(),
+					poster_hash: modal.find("input[name='edit-poster_hash']").val(),
+					capcode: modal.find("select[name='edit-capcode']").val(),
+					comment: modal.find("textarea[name='edit-comment']").val(),
+					filename: modal.find("input[name='edit-filename']").val(),
+					media_w: modal.find("input[name='edit-media_w']").val(),
+					media_h: modal.find("input[name='edit-media_h']").val(),
+					preview_w: modal.find("input[name='edit-preview_w']").val(),
+					preview_h: modal.find("input[name='edit-preview_h']").val(),
+					csrf_fool: backend_vars.csrf_hash,
+					posts: []
+				};
+				if ($('input[name=edit-spoiler]').is(':checked')) {
+					_data.spoiler = 1;
+				} else {
+					_data.spoiler = 0;
+				}
+				jQuery('.bulkselect:checked').each(function () {
+					_data.posts.push({
+							radix: $(this).attr('data-board'),
+							doc_id: $(this).attr('data-doc-id')
+						}
+					);
+				});
+			}
+			else if (action == 'bulk-report') {
+				_data = {
+					action: 'bulk_report',
+					reason: modal.find(".modal-comment").val(),
+					csrf_fool: backend_vars.csrf_hash,
+					posts: []
+				};
+				jQuery('.bulkreportselect:checked').each(function () {
+					_data.posts.push({
+							radix: $(this).attr('data-board'),
+							doc_id: $(this).attr('data-doc-id'),
+							num: $(this).attr('data-num')
+						}
+					);
+				});
+			}
+			else if (action == 'bulk-mod') {
+				_href = backend_vars.api_url+'_/api/chan/bulk_mod/';
+				_data = {
+					action: 'bulk_mod',
+					mod_function: $('input[name=modaction]:checked').val(),
+					csrf_fool: backend_vars.csrf_hash,
+					posts: []
+				};
+				jQuery('.bulkmodselect:checked').each(function () {
+					_data.posts.push({
+							radix: $(this).attr('data-board'),
+							doc_id: $(this).attr('data-doc-id'),
+							num: $(this).attr('data-num')
+						}
+					);
+				});
+			}
 			else {
 				// Stop It! Unable to determine which action to use.
 				return false;
@@ -707,6 +903,18 @@ var bindFunctions = function()
 				}
 				if (action == 'report') {
 					jQuery('.doc_id_' + _doc_id).find('.text:eq(0)').after('<div class="report_reason">' + result.success + '</div>');
+				}
+				if (action == 'edit-post') {
+					jQuery('.doc_id_' + _doc_id).find('.text:eq(0)').after('<div class="report_reason">' + result.success + '</div>');
+				}
+				if (action == 'bulk-edit') {
+					jQuery('div.container').after('<div style="text-align:center;" class="alert alert-success">' + result.success + '</div>');
+				}
+				if (action == 'bulk-report') {
+					jQuery('div.container').after('<div style="text-align:center;" class="alert alert-success">' + result.success + '</div>');
+				}
+				if (action == 'bulk-mod') {
+					jQuery('div.container').after('<div style="text-align:center;" class="alert alert-success">' + result.success + '</div>');
 				}
 			}, 'json');
 			return false;
@@ -734,6 +942,21 @@ var bindFunctions = function()
 		toggleExif: function(el, post, event)
 		{
 			jQuery(".exiftable."+post).toggle();
+		},
+
+		searchhilight: function(el, post, event)
+		{
+			if (el.is(':checked')) {
+				setCookie("searchhilight_enabled", true, 90, '/', backend_vars.cookie_domain);
+				if (jQuery("span[data-markjs='true']").length) {
+					jQuery("span[data-markjs='true']").addClass("highlight");
+				} else if (typeof backend_vars.search_args !== "undefined") {
+					highlightSearchResults();
+				}
+			} else {
+				setCookie("searchhilight_enabled", false, 90, '/', backend_vars.cookie_domain);
+				jQuery("span[data-markjs='true']").removeClass("highlight");
+			}
 		}
 	};
 
@@ -745,17 +968,17 @@ var bindFunctions = function()
 		return clickCallbacks[el.data("function")](el, post, event);
 	});
 
-	jQuery(document.body).on("click", ".search_box, .search-query", function(event) {
+	jQuery(document.body).on("mousedown touchstart", ".search_box, .search-query", function(event) {
 		event.stopPropagation();
 	});
 
-	jQuery(document.body).click(function(event) {
+	jQuery(document.body).on("mousedown touchstart", function(event) {
 		var search_input = jQuery('#search_form_comment');
 		jQuery('.search-query').val(search_input.val());
 		jQuery('.search_box').hide();
 	});
 
-	jQuery('.search-query').focus(function() {
+	jQuery(document.body).on("mousedown touchstart", ".search-query", function() {
 		var el = jQuery(this);
 		var offset = el.offset();
 		var width = el.outerWidth();
@@ -1195,6 +1418,36 @@ var enableRealtimeThread = function()
 	}
 };
 
+var highlightSearchResults = function()
+{
+	jQuery.each(backend_vars.search_args, function(id, val)
+	{
+		var selector;
+		if (id == "text") {
+			selector = "div.text";
+		} else if (id == "filename") {
+			selector = "a.post_file_filename"
+		} else if (id == "username") {
+			selector = "span.post_author"
+		} else if (id == "subject") {
+			selector = "h2.post_title";
+		} else if (id == "tripcode") {
+			selector = "span.post_tripcode";
+		} else if (id == "uid") {
+			selector = "span.poster_hash";
+		} else {
+			return true;
+		}
+		if (selector != "") {
+			val = val.replace(/[\.\*\^\|'"!]/g, " ");
+			jQuery( selector ).mark(val, {
+				"element": "span",
+				"className": "highlight"
+			});
+		}
+	});
+};
+
 jQuery(document).ready(function() {
 
 	// settings
@@ -1229,6 +1482,7 @@ jQuery(document).ready(function() {
 		}
 
 		toggleHighlight(post[1]);
+		jQuery('#'+post[1].replace('q', ''))[0].scrollIntoView( true );
 	}
 
 	if (typeof backend_vars.thread_id !== "undefined" && (Math.round(new Date().getTime() / 1000) - backend_vars.latest_timestamp < 6 * 60 * 60))
@@ -1262,6 +1516,10 @@ jQuery(document).ready(function() {
 		placement: 'bottom',
 		animation: true
 	});
+
+	if (typeof backend_vars.search_args !== "undefined" && getCookie("searchhilight_enabled") == "true") {
+		highlightSearchResults();
+	}
 });
 
 $.fn.extend({

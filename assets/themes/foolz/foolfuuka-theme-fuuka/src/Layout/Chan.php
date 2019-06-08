@@ -10,9 +10,13 @@ class Chan extends \Foolz\FoolFuuka\View\View
         header('imagetoolbar: false');
 
         $this->getHeader();
+        $this->flush();
         $this->getNav();
+        $this->flush();
         $this->getContent();
+        $this->flush();
         $this->getFooter();
+        $this->flush();
     }
 
     public function getSelectedThemeClass()
@@ -44,7 +48,13 @@ class Chan extends \Foolz\FoolFuuka\View\View
         <?php if ($this->getPreferences()->get('foolfuuka.sphinx.global')) : ?>
             <link rel="search" type="application/opensearchdescription+xml" title="<?= $this->getPreferences()->get('foolframe.gen.website_title') ?> " href="<?= $this->getUri()->create('_/opensearch') ?>" />
         <?php endif; ?>
-        <script src="<?= $this->getUri()->create('foolfuuka/mathjax/mathjax') ?>MathJax.js?config=default"></script>
+
+        <script src="<?= $this->getUri()->create('foolfuuka/components/highlightjs') ?>highlight.pack.js"></script>
+        <?php if ($radix = $this->getBuilderParamManager()->getParam('radix')) : ?>
+            <?php if ($radix->getValue('is_nsfw', false)) : ?><meta name="RATING" content="RTA-5042-1996-1400-1577-RTA"><?php endif; ?>
+            <?php if ($radix->getValue('enable_math', false)) : ?><script src="<?= $this->getUri()->create('foolfuuka/mathjax/mathjax') ?>MathJax.js?config=default"></script><?php endif; ?>
+        <?php endif; ?>
+        <?php \Foolz\Plugin\Hook::forge('foolfuuka.themes.all_header_code')->setObject($this)->execute(); ?>
         <?= $this->getPreferences()->get('foolframe.theme.header_code') ?>
     </head>
         <?php

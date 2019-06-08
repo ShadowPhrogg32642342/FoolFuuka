@@ -18,7 +18,7 @@ class Board extends \Foolz\FoolFuuka\View\View
         $form = $this->getForm();
 
         if ($thread_id > 0) {
-            echo $form->open(['enctype' => 'multipart/form-data', 'onsubmit' => 'fuel_set_csrf_token(this);', 'action' => $radix->shortname . '/submit', 'id' => 'postform']);
+            echo $form->open(['enctype' => 'multipart/form-data', 'onsubmit' => 'fuel_set_csrf_token(this);', 'action' => $this->getUri()->create([$radix->shortname , 'submit']), 'id' => 'postform']);
             echo $form->hidden('csrf_token', $this->getSecurity()->getCsrfToken());
             echo $form->hidden('id', 'postform');
             echo isset($backend_vars['last_limit']) ? $form->hidden('reply_last_limit', $backend_vars['last_limit'])  : '';
@@ -83,6 +83,15 @@ class Board extends \Foolz\FoolFuuka\View\View
                     <?php if ($op->capcode == 'D') : ?>
                         <span class="postername admin">## <?= _i('Developer') ?></span>
                     <?php endif; ?>
+                    <?php if ($op->capcode == 'V') : ?>
+                        <span class="postername verified">## <?= _i('Verified') ?></span>
+                    <?php endif ?>
+                    <?php if ($op->capcode == 'F') : ?>
+                        <span class="postername founder">## <?= _i('Founder') ?></span>
+                    <?php endif ?>
+                    <?php if ($op->capcode == 'G') : ?>
+                        <span class="postername manager">## <?= _i('Manager') ?></span>
+                    <?php endif ?>
                     <?= gmdate('D d M H:i:s Y', $op->getOriginalTimestamp()) ?>
                     <?php if ($op->poster_country !== null) : ?><span class="poster_country"><span title="<?= e($op->poster_country_name) ?>" class="flag flag-<?= strtolower($op->poster_country) ?>"></span></span><?php endif; ?>
                 </label>
@@ -110,7 +119,7 @@ class Board extends \Foolz\FoolFuuka\View\View
                 <blockquote><p><?= $op->getCommentProcessed() ?></p></blockquote>
                 <?php if ($op_media !== null && $op_media->getMediaStatus($this->getRequest()) === 'normal' && $op->radix->getValue('display_exif') && $op_media->exif !== NULL) : ?>
                     <table class="exiftable"><tbody>
-                        <?php foreach (json_decode($op_media->exif) as $a => $b) : ?>
+                        <?php foreach ($op_media->getExifData() as $a => $b) : ?>
                             <?php if(is_object($b)) : ?>
                                 <?php foreach ($b as $c => $d) : ?>
                                     <tr><td><?= htmlentities($a)," ",htmlentities($c) ?></td><td><?= htmlentities($d) ?></td></tr>

@@ -349,6 +349,7 @@ class Chan extends Common
 
     public function action_opensearch()
     {
+        $this->response->headers->set('Content-Type', 'application/opensearchdescription+xml; charset=utf-8');
         $this->builder->createLayout('open_search');
 
         return $this->response->setContent($this->builder->build());
@@ -730,7 +731,7 @@ class Chan extends Common
         $redirect  = $this->uri->create([$this->radix->shortname]).$filename;
 
         if ($this->radix->archive) {
-            $redirect  = ($this->radix->getValue('images_url') ? : '//images.4chan.org/'.$this->radix->shortname.'/src/').$filename;
+            $redirect  = ($this->radix->getValue('images_url') ? : '//i.4cdn.org/'.$this->radix->shortname.'/').$filename;
         }
 
         $this->builder->createLayout('redirect')
@@ -784,7 +785,8 @@ class Chan extends Common
         // Check all allowed search modifiers and apply only these
         $modifiers = [
             'boards', 'tnum', 'subject', 'text', 'username', 'tripcode', 'email', 'filename', 'capcode', 'uid', 'country',
-            'image', 'deleted', 'ghost', 'type', 'filter', 'start', 'end', 'results', 'order', 'page'
+            'image', 'deleted', 'ghost', 'type', 'filter', 'start', 'end', 'results', 'order', 'page',
+            'since4pass', 'width', 'height'
         ];
 
         if ($this->getAuth()->hasAccess('comment.see_ip')) {
@@ -912,6 +914,18 @@ class Chan extends Common
             return $this->error(_i('Thread number you inserted is not a valid number.'));
         }
 
+        if ($search['height'] !== null && !is_numeric($search['height'])) {
+            return $this->error(_i('Image height you inserted is not a valid number.'));
+        }
+
+        if ($search['width'] !== null && !is_numeric($search['width'])) {
+            return $this->error(_i('Image width you inserted is not a valid number.'));
+        }
+
+        if ($search['since4pass'] !== null && !is_numeric($search['since4pass'])) {
+            return $this->error(_i('Since4pass you inserted is not a valid year.'));
+        }
+
         try {
             $board = Search::forge($this->getContext())
                 ->getSearch($search)
@@ -975,6 +989,14 @@ class Chan extends Common
             'post_show_board_name' => $this->radix === null,
             'post_show_view_button' => true
         ]);
+
+        $backend_vars = $this->param_manager->getParam('backend_vars');
+        foreach ($search as $key => $value) {
+            if ($value != null) {
+                $backend_vars['search_args'][$key] = $value;
+            }
+        }
+        $this->param_manager->setParam('backend_vars', $backend_vars);
 
         $this->profiler->logMem('Controller Chan $this', $this);
         $this->profiler->log('Controller Chan::search End');
@@ -1081,12 +1103,12 @@ class Chan extends Common
 
         if (isset($post['reply_bokunonome'])) {
             $data['name'] = $post['reply_bokunonome'];
-            $this->response->headers->setCookie(new Cookie($this->getContext(), 'reply_name', $data['name'], 60*60*24*30));
+            $this->response->headers->setCookie(new Cookie($this->getContext(), 'reply_name', $data['name'], 60 * 60 * 24 * 30));
         }
 
         if (isset($post['reply_elitterae'])) {
             $data['email'] = $post['reply_elitterae'];
-            $this->response->headers->setCookie(new Cookie($this->getContext(), 'reply_email', $data['email'], 60*60*24*30));
+            $this->response->headers->setCookie(new Cookie($this->getContext(), 'reply_email', $data['email'], 60 * 60 * 24 * 30));
         }
 
         if (isset($post['reply_talkingde'])) {
@@ -1104,7 +1126,7 @@ class Chan extends Common
             }
 
             $data['delpass'] = $post['reply_nymphassword'];
-            $this->response->headers->setCookie(new Cookie($this->getContext(), 'reply_password', $data['delpass'], 60*60*24*30));
+            $this->response->headers->setCookie(new Cookie($this->getContext(), 'reply_password', $data['delpass'], 60 * 60 * 24 * 30));
         }
 
         if (isset($post['reply_gattai_spoilered']) || isset($post['reply_spoiler'])) {
@@ -1119,10 +1141,6 @@ class Chan extends Common
             $data['last_limit'] = $post['reply_last_limit'];
         }
 
-        if (isset($post['recaptcha_challenge_field']) && isset($post['recaptcha_response_field'])) {
-            $data['recaptcha_challenge'] = $post['recaptcha_challenge_field'];
-            $data['recaptcha_response'] = $post['recaptcha_response_field'];
-        }
         // recaptcha2 & noscript recaptcha2
         if (isset($post['recaptcha2_response_field'])) {
             $data['recaptcha2_response'] = $post['recaptcha2_response_field'];
@@ -1143,6 +1161,8 @@ class Chan extends Common
                 } else {
                     return $this->error($e->getMessage());
                 }
+            } catch (\Foolz\FoolFuuka\Model\MediaUploadWorkaroundException $e) {
+                $media = null;
             } catch (\Foolz\FoolFuuka\Model\MediaUploadException $e) {
                 if ($this->getRequest()->isXmlHttpRequest()) {
                     return $this->response->setData(['error' => $e->getMessage()]);

@@ -24,6 +24,7 @@ class MediaUploadException extends \Exception {}
 class MediaUploadNoFileException extends MediaUploadException {}
 class MediaUploadMultipleNotAllowedException extends MediaUploadException {}
 class MediaUploadInvalidException extends MediaUploadException {}
+class MediaUploadWorkaroundException extends MediaUploadException {}
 
 class MediaInsertException extends \Exception {}
 class MediaInsertInvalidFormatException extends MediaInsertException {}
@@ -200,6 +201,9 @@ class Media extends Model
     public function setBulk(CommentBulk $bulk)
     {
         $this->radix = $bulk->getRadix();
+        if ($this->radix !== null && $this->radix->getValue('external_database')) {
+            $this->dc = new BoardConnection($this->getContext(), $this->radix);
+        }
         $this->bulk = $bulk;
         $this->media = $bulk->media;
 
@@ -412,7 +416,7 @@ class Media extends Model
             ->execute()
             ->get();
 
-        if (!$before instanceof \Foolz\Plugin\Void) {
+        if (!$before instanceof \Foolz\Plugin\FoolVoid) {
             return $before;
         }
 
@@ -519,6 +523,16 @@ class Media extends Model
     {
         $string = str_replace(['-', '_'], ['+', '/'], $string);
         return base64_decode($string);
+    }
+
+    /**
+     * Decodes Exif data
+     *
+     * @return  object|array  Exif data
+     */
+    public function getExifData()
+    {
+        return json_decode($this->media->exif, false);
     }
 
     /**
@@ -768,7 +782,7 @@ class Media extends Model
                 ->execute()
                 ->get();
 
-            if ($return instanceof \Foolz\Plugin\Void) {
+            if ($return instanceof \Foolz\Plugin\FoolVoid) {
                 if ($this->radix->getValue('enable_animated_gif_thumbs') && strtolower($file->getClientOriginalExtension()) === 'gif') {
                     exec(str_replace(' ', '\\ ', $this->preferences->get('foolframe.imagick.convert_path')) .
                         " " . $data['path'] . " -coalesce -treedepth 4 -colors 256 -quality 80 -background none " .

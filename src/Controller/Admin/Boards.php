@@ -226,6 +226,50 @@ class Boards extends \Foolz\FoolFrame\Controller\Admin
             'type' => 'separator'
         ];
 
+        $form['paragraph2'] = array(
+            'type' => 'paragraph',
+            'help' => _i('In order to use reCAPTCHA2&trade; you need to sign up for the service at <a href="http://www.google.com/recaptcha">reCAPTCHA2&trade;</a>, which will provide you with a site and a secret key. If these are set reCAPTCHA2&trade; will be prefered.')
+        );
+
+        $form['foolframe.auth.recaptcha2_sitekey'] = array(
+            'type' => 'input',
+            'label' => _i('reCaptcha2&trade; Site Key'),
+            'preferences' => true,
+            'help' => _i('Insert the Site key provided by reCAPTCHA2&trade;.'),
+            'validation' => [new Trim()],
+            'class' => 'span4'
+        );
+
+        $form['foolframe.auth.recaptcha2_secret'] = array(
+            'type' => 'input',
+            'label' => _i('reCaptcha2&trade; Secret Key'),
+            'preferences' => true,
+            'help' => _i('Insert the Secret key provided by reCAPTCHA2&trade;.'),
+            'validation' => [new Trim()],
+            'class' => 'span4'
+        );
+
+        $form['foolfuuka.boards.enable_archive_cache'] = [
+            'type' => 'checkbox',
+            'label' => _i('Enable archive page caching'),
+            'placeholder' => '',
+            'preferences' => true,
+            'help' => _i('Enable archive page caching'),
+            'sub' => [
+                'foolfuuka.boards.page_cache_timeout' => [
+                    'preferences' => true,
+                    'type' => 'input',
+                    'label' => _i('Cache timeout (in seconds).'),
+                    'placeholder' => '',
+                    'validation' => [new Assert\Length(['max' => 256])]
+                ],
+            ]
+        ];
+
+        $form['separator-3'] = [
+            'type' => 'separator'
+        ];
+
         $form['submit'] = [
             'type' => 'submit',
             'value' => _i('Submit'),
@@ -403,6 +447,23 @@ class Boards extends \Foolz\FoolFrame\Controller\Admin
             'preferences' => true,
             'help' => _i('Set a custom error message.'),
             'class' => 'span6'
+        ];
+
+        $form['foolfuuka.sphinx.enable_cache'] = [
+            'type' => 'checkbox',
+            'label' => _i('Enable search result caching'),
+            'placeholder' => '',
+            'preferences' => true,
+            'help' => _i('Enable search result caching'),
+            'sub' => [
+                'foolfuuka.sphinx.cache_timeout' => [
+                    'preferences' => true,
+                    'type' => 'input',
+                    'label' => _i('Cache timeout (in seconds). This shouldn\'t be larger than delta index interval'),
+                    'placeholder' => '',
+                    'validation' => [new Assert\Length(['max' => 256])]
+                ],
+            ]
         ];
 
         $form['separator'] = [

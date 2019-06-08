@@ -10,9 +10,13 @@ class Chan extends \Foolz\FoolFuuka\View\View
         header('imagetoolbar: false');
 
         $this->getHeader();
+        $this->flush();
         $this->getNav();
+        $this->flush();
         $this->getContent();
+        $this->flush();
         $this->getFooter();
+        $this->flush();
     }
 
     public function getSelectedThemeClass()
@@ -23,9 +27,9 @@ class Chan extends \Foolz\FoolFuuka\View\View
     public function getStyles()
     {
         ?>
-    <link href="<?= $this->getTheme()->getExtended()->getAssetManager()->getAssetLink('style.css') ?>" rel="stylesheet" type="text/css"/>
-    <link href="<?= $this->getTheme()->getExtended()->getAssetManager()->getAssetLink('flags.css') ?>" rel="stylesheet" type="text/css"/>
-    <link href="<?= $this->getAssetManager()->getAssetLink('style.css') ?>" rel="stylesheet" type="text/css"/>
+        <link href="<?= $this->getTheme()->getExtended()->getAssetManager()->getAssetLink('style.css') ?>" rel="stylesheet" type="text/css"/>
+        <link href="<?= $this->getTheme()->getExtended()->getAssetManager()->getAssetLink('flags.css') ?>" rel="stylesheet" type="text/css"/>
+        <link href="<?= $this->getAssetManager()->getAssetLink('style.css') ?>" rel="stylesheet" type="text/css"/>
         <?php
     }
 
@@ -41,10 +45,6 @@ class Chan extends \Foolz\FoolFuuka\View\View
 
         <title><?= $this->getBuilder()->getProps()->getTitle(); ?></title>
         <link href="<?= $this->getUri()->base() ?>" rel="index" title="<?= $this->getPreferences()->get('foolframe.gen.website_title') ?>"/>
-        <?php if ($radix) : ?>
-        <link href="<?= $this->getUri()->create($radix->shortname) ?>rss_gallery_50.xml" rel="alternate" type="application/rss+xml" title="RSS"/>
-        <link href="<?= $this->getUri()->create($radix->shortname) ?>atom_gallery_50.xml" rel="alternate" type="application/atom+xml" title="Atom"/>
-        <?php endif; ?>
 
         <link href="<?= $this->getUri()->create('foolfuuka/components/highlightjs/styles') ?>default.css" rel="stylesheet" type="text/css"/>
         <link href="<?= $this->getTheme()->getExtended()->getAssetManager()->getAssetLink('bootstrap.legacy.css') ?>" rel="stylesheet" type="text/css"/>
@@ -64,7 +64,11 @@ class Chan extends \Foolz\FoolFuuka\View\View
         <?php endif; ?>
 
         <script src="<?= $this->getUri()->create('foolfuuka/components/highlightjs') ?>highlight.pack.js"></script>
-        <script src="<?= $this->getUri()->create('foolfuuka/mathjax/mathjax') ?>MathJax.js?config=default"></script>
+        <?php if ($radix) : ?>
+            <?php if ($radix->getValue('is_nsfw', false)) : ?><meta name="RATING" content="RTA-5042-1996-1400-1577-RTA"><?php endif; ?>
+            <?php if ($radix->getValue('enable_math', false)) : ?><script src="<?= $this->getUri()->create('foolfuuka/mathjax/mathjax') ?>MathJax.js?config=default"></script><?php endif; ?>
+        <?php endif; ?>
+        <?php \Foolz\Plugin\Hook::forge('foolfuuka.themes.all_header_code')->setObject($this)->execute(); ?>
         <?= $this->getPreferences()->get('foolframe.theme.header_code'); ?>
 
     </head>
@@ -186,7 +190,7 @@ class Chan extends \Foolz\FoolFuuka\View\View
                             }
 
                             if ($this->getAuth()->hasAccess('comment.reports')) {
-                                $top_nav[] = ['href' => $this->getUri()->create(['admin', 'moderation', 'reports']), 'text' => _i('Reports').($this->getReportColl()->count() ? ' <span style="font-family:Verdana;text-shadow:none; font-size:11px; color:#ddd;" class="label label-inverse">'.$this->getReportColl()->count().'</span>' : '')];
+                                $top_nav[] = ['href' => $this->getUri()->create(array('_', 'reports')), 'text' => _i('Reports').($this->getReportColl()->count() ? ' <span style="font-family:Verdana;text-shadow:none; font-size:11px; color:#ddd;" class="label label-inverse">'.$this->getReportColl()->count().'</span>' : '')];
                             }
 
                             $top_nav = \Foolz\Plugin\Hook::forge('foolframe.themes.generic_top_nav_buttons')->setObject($this)->setParam('nav', $top_nav)->execute()->get($top_nav);

@@ -146,6 +146,9 @@ class Comment extends Model
     public function setBulk(CommentBulk $bulk)
     {
         $this->radix = $bulk->getRadix();
+        if ($this->radix !== null && $this->radix->getValue('external_database')) {
+            $this->dc = new BoardConnection($this->getContext(), $this->radix);
+        }
         $this->bulk = $bulk;
         $this->comment = $bulk->comment;
         $this->media = $bulk->media;
@@ -170,6 +173,8 @@ class Comment extends Model
         if ($this->comment->poster_country !== null) {
             $this->comment->poster_country_name = $this->config->get('foolz/foolfuuka', 'geoip_codes', 'codes.'.strtoupper($this->comment->poster_country));
         }
+
+        $this->comment->extra_data = [];
 
         $num = $this->comment->getPostNum(',');
         $this->comment_factory->posts[$this->comment->thread_num][] = $num;
@@ -310,13 +315,33 @@ class Comment extends Model
     {
         if ($this->comment->poster_country_name_processed === false) {
             if (!isset($this->comment->poster_country_name)) {
-                $this->comment->poster_country_name_processed = $this->process('getPosterCountryNameProcesed', null);
+                $this->comment->poster_country_name_processed = $this->process('getPosterCountryNameProcessed', null);
             } else {
-                $this->comment->poster_country_name_processed = $this->process('getPosterCountryNameProcesed', $this->comment->poster_country_name);
+                $this->comment->poster_country_name_processed = $this->process('getPosterCountryNameProcessed', $this->comment->poster_country_name);
             }
         }
 
         return $this->comment->poster_country_name_processed;
+    }
+
+    /**
+     * Gets extra data from Exif
+     *
+     * @param  string  $field  Custom field name
+     *
+     * @return  array|string|null  Null if not found
+     */
+    public function getExtraData($field)
+    {
+        if (!isset($this->comment->extra_data[$field])) {
+            if (isset(json_decode($this->comment->exif, true)[$field])) {
+                $this->comment->extra_data[$field] = json_decode($this->comment->exif, true)[$field];
+            } else {
+                $this->comment->extra_data[$field] = null;
+            }
+        }
+
+        return $this->comment->extra_data[$field];
     }
 
     /**
@@ -422,6 +447,13 @@ class Comment extends Model
             $builder->setUseOption(true);
             array_push($definitions, $builder->build());
 
+            $builder = new \JBBCode\CodeDefinitionBuilder('shiftjis', '<span class="shift-jis">{param}</span>');
+            array_push($definitions, $builder->build());
+
+            $builder = new \JBBCode\CodeDefinitionBuilder('qstcolor', '<span class="qst-color {option}">{param}</span>');
+            $builder->setUseOption(true);
+            array_push($definitions, $builder->build());
+
             $definitions = Hook::forge('Foolz\FoolFuuka\Model\Comment::processCommentBBCode#var.definitions')
                 ->setObject($this)
                 ->setParam('definitions', $definitions)
@@ -459,10 +491,10 @@ class Comment extends Model
     {
         // if protocol is not set, use http by default
         if (!isset($matches[2])) {
-            return '<a href="http://'.$matches[1].'" target="_blank">'.$matches[1].'</a>';
+            return '<a href="http://'.$matches[1].'" target="_blank" rel="nofollow">'.$matches[1].'</a>';
         }
 
-        return '<a href="'.$matches[1].'" target="_blank">'.$matches[1].'</a>';
+        return '<a href="'.$matches[1].'" target="_blank" rel="nofollow">'.$matches[1].'</a>';
     }
 
     /**
@@ -892,22 +924,29 @@ class Comment extends Model
                 ->setParameter(':doc_id', $this->comment->doc_id)
                 ->execute();
 
+            $this->dc->qb()
+                ->update($this->radix->getTable('_threads'))
+                ->where('thread_num = :thread_num')
+                ->set('time_last_modified', 'GREATEST(time_last_modified, :time_last_modified)')
+                ->setParameter(':thread_num', $this->comment->thread_num)
+                ->setParameter(':time_last_modified', time())
+                ->execute();
+
             $this->clearCache();
 
+            $this->audit->log(Audit::AUDIT_EDIT_POST, [
+                'radix' => $this->radix->id,
+                'doc_id' => $this->comment->doc_id,
+                'thread_num' => $this->comment->thread_num,
+                'num' => $this->comment->num,
+                'subnum' => $this->comment->subnum
+            ]);
         } catch (\Doctrine\DBAL\DBALException $e) {
             $this->logger->error('\Foolz\FoolFuuka\Model\Comment: '.$e->getMessage());
             $this->dc->getConnection()->rollBack();
 
             throw new CommentSendingDatabaseException(_i('Something went wrong when updating the post in the database. Try again.'));
         }
-
-        $this->audit->log(Audit::AUDIT_EDIT_POST, [
-            'radix' => $this->radix->id,
-            'doc_id' => $this->comment->doc_id,
-            'thread_num' => $this->comment->thread_num,
-            'num' => $this->comment->num,
-            'subnum' => $this->comment->subnum
-        ]);
     }
 
     /**

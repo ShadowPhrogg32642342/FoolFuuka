@@ -2,7 +2,7 @@
   "name": "foolz/foolfuuka-theme-mobile",
   "type": "foolz-foolfuuka-theme",
   "description": "Mobile FoolFuuka theme.",
-  "version": "0.0.9",
+  "version": "0.1.17",
   "keywords": [
     "theme",
     "default",
@@ -34,7 +34,10 @@
     "extends": "foolz/foolfuuka-theme-foolfuuka",
     "styles": {
       "default": "Default",
-      "midnight": "Midnight"
+      "midnight": "Midnight",
+      "kurimasu": "Christmas",
+      "barentain": "Valentine's Day",
+      "halloween": "Halloween"
     }
   }
 }

@@ -96,9 +96,12 @@ class ToolsReplyBox extends \Foolz\FoolFuuka\View\View
                         <?php
                         $postas = ['N' => _i('User')];
 
+                        if ($this->getAuth()->hasAccess('comment.verified_capcode')) $postas['V'] = _i('Verified');
                         if ($this->getAuth()->hasAccess('comment.mod_capcode')) $postas['M'] = _i('Moderator');
                         if ($this->getAuth()->hasAccess('comment.admin_capcode')) $postas['A'] = _i('Administrator');
                         if ($this->getAuth()->hasAccess('comment.dev_capcode')) $postas['D'] = _i('Developer');
+                        if ($this->getAuth()->hasAccess('comment.founder_capcode')) $postas['F'] = _i('Founder');
+                        if ($this->getAuth()->hasAccess('comment.manager_capcode')) $postas['G'] = _i('Manager');
                         if (count($postas) > 1) :
                             ?>
                             <div class="input-prepend">
@@ -180,37 +183,6 @@ class ToolsReplyBox extends \Foolz\FoolFuuka\View\View
                                             margin: 10px 25px; padding: 0px; resize: none;"></textarea>
                                     </div>
                                 </div>
-                            </noscript>
-                        <?php elseif ($this->getPreferences()->get('foolframe.auth.recaptcha_public', false)) : ?>
-                            <script>
-                                var recaptcha2 = {
-                                    'enabled': false
-                                };
-                                var RecaptchaOptions = {
-                                    theme: 'custom',
-                                    custom_theme_widget: 'recaptcha_widget'
-                                };
-                            </script>
-                        <div class="recaptcha_widget" style="display:none">
-                            <div><p><?= e(_i('You might be a bot! Enter a reCAPTCHA to continue.')) ?></p></div>
-                            <div id="recaptcha_image" style="background: #fff; border: 1px solid #ccc; padding: 3px 6px; margin: 4px 0;"></div>
-                            <div class="input-prepend">
-                                <label class="add-on" for="recaptcha_response_field"><?= e(_i('Solution')) ?></label>
-                                <input type="text" id="recaptcha_response_field" name="recaptcha_response_field" />
-                                <div class="btn-group">
-                                    <a class="btn btn-mini" href="javascript:Recaptcha.reload()">Get another CAPTCHA</a>
-                                    <a class="recaptcha_only_if_image btn btn-mini" href="javascript:Recaptcha.switch_type('audio')">Get an audio CAPTCHA</a>
-                                    <a class="recaptcha_only_if_audio btn btn-mini" href="javascript:Recaptcha.switch_type('image')">Get an image CAPTCHA</a>
-                                    <a class="btn btn-mini" href="javascript:Recaptcha.showhelp()">Help</a>
-                                </div>
-                            </div>
-                            <script type="text/javascript" src="//www.google.com/recaptcha/api/challenge?k=<?= $this->getPreferences()->get('foolframe.auth.recaptcha_public') ?>"></script>
-                        </div>
-                            <noscript>
-                                <iframe src="//www.google.com/recaptcha/api/noscript?k=<?= $this->getPreferences()->get('foolframe.auth.recaptcha_public') ?>" height="300" width="500" frameborder="0"></iframe><br>
-                                <textarea name="recaptcha_challenge_field" rows="3" cols="40">
-                            </textarea>
-                                <input type="hidden" name="recaptcha_response_field"  value="manual_challenge">
                             </noscript>
                         <?php endif; ?>
                     </div>
