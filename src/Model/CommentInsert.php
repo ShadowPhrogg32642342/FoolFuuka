@@ -32,6 +32,7 @@ class CommentInsert extends Comment
 {
     public $recaptcha_challenge = null;
     public $recaptcha_response = null;
+    public $recaptcha2_response = null;
     public $ghost = false;
     public $ghost_exist = false;
     public $allow_media = false;
@@ -39,12 +40,13 @@ class CommentInsert extends Comment
     protected function insertTriggerDaily()
     {
         $item = [
+            'posts' => 1,
             'day' => (int) (floor($this->comment->timestamp/86400)*86400),
-            'images' => (int) ($this->bulk->media !== null),
+            'images' => (int) ($this->bulk->media->media_id != 0),
             'sage' => (int) ($this->comment->email === 'sage'),
             'anons' => (int) ($this->comment->name === $this->radix->getValue('anonymous_default_name') && $this->comment->trip === null),
             'trips' => (int) ($this->comment->trip !== null),
-            'names' => (int) ($this->comment->name !== $this->radix->getValue('anonymous_default_name') || $this->comment->trip !== null)
+            'names' => (int) ($this->comment->name !== $this->radix->getValue('anonymous_default_name') && $this->comment->trip === null)
         ];
 
         $result = $this->dc->qb()
@@ -57,7 +59,6 @@ class CommentInsert extends Comment
 
         if ($result === false) {
             try {
-                $item['posts'] = 0;
                 $this->dc->getConnection()->insert($this->radix->getTable('_daily'), $item);
             } catch(\Doctrine\DBAL\DBALException $e) {
                 throw new \Doctrine\DBAL\DBALException;
@@ -65,6 +66,7 @@ class CommentInsert extends Comment
         } else {
             $this->dc->qb()
                 ->update($this->radix->getTable('_daily'))
+                ->set('posts', 'posts + :posts')
                 ->set('images', 'images + :images')
                 ->set('sage', 'sage + :sage')
                 ->set('anons', 'anons + :anons')
@@ -72,6 +74,7 @@ class CommentInsert extends Comment
                 ->set('names', 'names + :names')
                 ->where('day = :day')
                 ->setParameter(':day', $item['day'])
+                ->setParameter(':posts', $item['posts'])
                 ->setParameter(':images', $item['images'])
                 ->setParameter(':sage', $item['sage'])
                 ->setParameter(':anons', $item['anons'])
@@ -200,9 +203,13 @@ class CommentInsert extends Comment
      */
     public function p_insert(Media $media = null, $data = [])
     {
-        if (isset($data['recaptcha_challenge'])) {
-            $this->recaptcha_challenge = $data['recaptcha_challenge'];
+        if (isset($data['recaptcha_response'])) {
             $this->recaptcha_response = $data['recaptcha_response'];
+            $this->recaptcha_challenge = $data['recaptcha_challenge'];
+        }
+
+        if (isset($data['recaptcha2_response'])) {
+            $this->recaptcha2_response = $data['recaptcha2_response'];
         }
 
         $this->ghost = false;
@@ -300,18 +307,27 @@ class CommentInsert extends Comment
             // clean up to reset eventual auto-built entries
             $this->comment->clean();
 
-            if ($this->recaptcha_challenge && $this->recaptcha_response && $this->preferences->get('foolframe.auth.recaptcha_public', false)) {
+            if ($this->recaptcha2_response && $this->preferences->get('foolframe.auth.recaptcha2_sitekey', false)) {
+                $recaptcha = new \ReCaptcha\ReCaptcha($this->preferences->get('foolframe.auth.recaptcha2_secret'));
+                $recaptcha_result = $recaptcha->verify(
+                    $this->recaptcha2_response,
+                    Inet::dtop($this->comment->poster_ip)
+                );
+
+                if (!$recaptcha_result->isSuccess()) {
+                    throw new CommentSendingWrongCaptchaException(_i('Incorrect CAPTCHA solution. '));
+                }
+            } elseif ($this->recaptcha_response && $this->preferences->get('foolframe.auth.recaptcha_public', false)) {
                 $recaptcha = ReCaptcha::create($this->preferences->get('foolframe.auth.recaptcha_public'), $this->preferences->get('foolframe.auth.recaptcha_private'));
                 $recaptcha_result = $recaptcha->checkAnswer(
                     Inet::dtop($this->comment->poster_ip),
                     $this->recaptcha_challenge,
-                    $this->recaptcha_response
-                );
+                    $this->recaptcha_response);
 
                 if (!$recaptcha_result->isValid()) {
                     throw new CommentSendingWrongCaptchaException(_i('Incorrect CAPTCHA solution.'));
                 }
-            } elseif ($this->preferences->get('foolframe.auth.recaptcha_public')) { // if there wasn't a recaptcha input, let's go with heavier checks
+            } elseif ($this->preferences->get('foolframe.auth.recaptcha_public') || $this->preferences->get('foolframe.auth.recaptcha2_sitekey')) { // if there wasn't a recaptcha input, let's go with heavier checks
                 Hook::forge('Foolz\FoolFuuka\Model\CommentInsert::insert#obj.captcha')
                     ->setObject($this)
                     ->execute();

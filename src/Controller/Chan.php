@@ -514,7 +514,9 @@ class Chan extends Common
                     'thread_dead' => $thread_status['dead'],
                     'latest_doc_id' => $latest_doc_id,
                     'latest_timestamp' => $latest_timestamp,
-                    'thread_op_data' => $thread[$num]['op']
+                    'thread_op_data' => $thread[$num]['op'],
+                    'nreplies' => $thread_status['nreplies'],
+                    'nimages' => $thread_status['nimages']
                 ]);
 
                 $this->builder->createPartial('body', 'board')
@@ -642,7 +644,7 @@ class Chan extends Common
         $this->param_manager->setParam('section_title', _i('Reports'));
 
         /** @var Report[] $reports */
-        $reports = $this->getContext()->getService('foolfuuka.report_collection')->getAll();
+        $reports = $this->getContext()->getService('foolfuuka.report_collection')->getGrouped();
 
         $results = [];
         foreach ($reports as $report) {
@@ -781,11 +783,11 @@ class Chan extends Common
 
         // Check all allowed search modifiers and apply only these
         $modifiers = [
-            'boards', 'subject', 'text', 'username', 'tripcode', 'email', 'filename', 'capcode', 'uid', 'country',
+            'boards', 'tnum', 'subject', 'text', 'username', 'tripcode', 'email', 'filename', 'capcode', 'uid', 'country',
             'image', 'deleted', 'ghost', 'type', 'filter', 'start', 'end', 'results', 'order', 'page'
         ];
 
-        if ($this->getAuth()->hasAccess('comment.see_ip')) {;
+        if ($this->getAuth()->hasAccess('comment.see_ip')) {
             $modifiers[] = 'poster_ip';
             $modifiers[] = 'deletion_mode';
         }
@@ -849,7 +851,7 @@ class Chan extends Common
         }
 
         // sanitize
-        foreach($cookie_array as $item) {
+        foreach ($cookie_array as $item) {
             // all subitems must be array, all must have 'board'
             if (!is_array($item) || !isset($item['board'])) {
                 $cookie_array = [];
@@ -863,7 +865,7 @@ class Chan extends Common
         unset($search_opts['page']);
 
         // if it's already in the latest searches, remove the previous entry
-        foreach($cookie_array as $key => $item) {
+        foreach ($cookie_array as $key => $item) {
             if ($item === $search_opts) {
                 unset($cookie_array[$key]);
                 break;
@@ -906,6 +908,10 @@ class Chan extends Common
             $search['poster_ip'] = Inet::ptod($search['poster_ip']);
         }
 
+        if ($search['tnum'] !== null && !is_numeric($search['tnum'])) {
+            return $this->error(_i('Thread number you inserted is not a valid number.'));
+        }
+
         try {
             $board = Search::forge($this->getContext())
                 ->getSearch($search)
@@ -918,88 +924,13 @@ class Chan extends Common
             return $this->error($e->getMessage());
         }
 
-        // Generate the $title with all search modifiers enabled.
-        $title = [];
-
-        if ($search['text'])
-            array_push($title,
-                sprintf(_i('that contain &lsquo;%s&rsquo;'),
-                    e($search['text'])));
-        if ($search['subject'])
-            array_push($title,
-                sprintf(_i('with the subject &lsquo;%s&rsquo;'),
-                    e($search['subject'])));
-        if ($search['username'])
-            array_push($title,
-                sprintf(_i('with the username &lsquo;%s&rsquo;'),
-                    e($search['username'])));
-        if ($search['tripcode'])
-            array_push($title,
-                sprintf(_i('with the tripcode &lsquo;%s&rsquo;'),
-                    e($search['tripcode'])));
-        if ($search['uid'])
-            array_push($title,
-                sprintf(_i('with the unique id &lsquo;%s&rsquo;'),
-                    e($search['uid'])));
-        if ($search['email'])
-            array_push($title,
-                sprintf(_i('with the email &lsquo;%s&rsquo;'),
-                    e($search['email'])));
-        if ($search['filename'])
-            array_push($title,
-                sprintf(_i('with the filename &lsquo;%s&rsquo;'),
-                    e($search['filename'])));
-        if ($search['image']) {
-            array_push($title,
-                sprintf(_i('with the image hash &lsquo;%s&rsquo;'),
-                    e($search['image'])));
-        }
-        if ($search['country'])
-            array_push($title,
-                sprintf(_i('in &lsquo;%s&rsquo;'),
-                    e($search['country'])));
-        if ($search['deleted'] == 'deleted')
-            array_push($title, _i('that have been deleted'));
-        if ($search['deleted'] == 'not-deleted')
-            array_push($title, _i('that has not been deleted'));
-        if ($search['ghost'] == 'only')
-            array_push($title, _i('that are by ghosts'));
-        if ($search['ghost'] == 'none')
-            array_push($title, _i('that are not by ghosts'));
-        if ($search['type'] == 'sticky')
-            array_push($title, _i('that were stickied'));
-        if ($search['type'] == 'op')
-            array_push($title, _i('that are only OP posts'));
-        if ($search['type'] == 'posts')
-            array_push($title, _i('that are only non-OP posts'));
-        if ($search['filter'] == 'image')
-            array_push($title, _i('that do not contain images'));
-        if ($search['filter'] == 'text')
-            array_push($title, _i('that only contain images'));
-        if ($search['capcode'] == 'user')
-            array_push($title, _i('that were made by users'));
-        if ($search['capcode'] == 'mod')
-            array_push($title, _i('that were made by mods'));
-        if ($search['capcode'] == 'admin')
-            array_push($title, _i('that were made by admins'));
-        if ($search['start'])
-            array_push($title, sprintf(_i('posts after %s'), e($search['start'])));
-        if ($search['end'])
-            array_push($title, sprintf(_i('posts before %s'), e($search['end'])));
-        if ($search['order'] == 'asc')
-            array_push($title, _i('in ascending order'));
-
-        if (!empty($title)) {
-            $title = sprintf(_i('Searching for posts %s.'),
-                implode(' ' . _i('and') . ' ', $title));
-        } else {
-            $title = _i('Displaying all posts with no filters applied.');
-        }
+        // Get the $title with all search modifiers enabled.
+        $title = $board->title;
 
         if ($this->radix) {
             $this->builder->getProps()->addTitle($title);
         } else {
-            $this->builder->getProps()->addTitle('Global Search &raquo; '.$title);
+            $this->builder->getProps()->addTitle('Global Search &raquo; ' . $title);
         }
 
         if ($board->getTotalResults() > 5000) {
@@ -1016,7 +947,7 @@ class Chan extends Common
         $pagination = $search;
         unset($pagination['page']);
         $pagination_arr = [];
-        $pagination_arr[] = $this->radix !== null ?$this->radix->shortname : '_';
+        $pagination_arr[] = $this->radix !== null ? $this->radix->shortname : '_';
         $pagination_arr[] = 'search';
         foreach ($pagination as $key => $item) {
             if ($item || $item === 0) {
@@ -1036,8 +967,8 @@ class Chan extends Common
         $pagination_arr[] = 'page';
         $this->param_manager->setParam('pagination', [
             'base_url' => $this->uri->create($pagination_arr),
-            'current_page' => $search['page'] ? : 1,
-            'total' => ceil($board->getCount()/25),
+            'current_page' => $search['page'] ?: 1,
+            'total' => ceil($board->getCount() / 25),
         ]);
 
         $this->param_manager->setParam('modifiers', [
@@ -1048,7 +979,7 @@ class Chan extends Common
         $this->profiler->logMem('Controller Chan $this', $this);
         $this->profiler->log('Controller Chan::search End');
 
-        $this->response->setCallback(function() {
+        $this->response->setCallback(function () {
             $this->builder->stream();
         });
 
@@ -1191,6 +1122,13 @@ class Chan extends Common
         if (isset($post['recaptcha_challenge_field']) && isset($post['recaptcha_response_field'])) {
             $data['recaptcha_challenge'] = $post['recaptcha_challenge_field'];
             $data['recaptcha_response'] = $post['recaptcha_response_field'];
+        }
+        // recaptcha2 & noscript recaptcha2
+        if (isset($post['recaptcha2_response_field'])) {
+            $data['recaptcha2_response'] = $post['recaptcha2_response_field'];
+        }
+        if (isset($post['g-recaptcha-response'])) {
+            $data['recaptcha2_response'] = $post['g-recaptcha-response'];
         }
 
         $media = null;

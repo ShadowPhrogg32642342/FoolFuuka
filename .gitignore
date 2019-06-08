@@ -3,7 +3,8 @@ vendor/
 cron/
 public/boards/
 public/tools/
-.idea
+*.lock
+**/.idea
 .DS_Store
 ._.DS_Store
 error.log
@@ -15,5 +16,4 @@ public/boards
 public/foolframe/
 public/foolfuuka/
 public/fun/
-*.lock
 components/

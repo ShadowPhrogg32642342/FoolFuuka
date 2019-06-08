@@ -69,9 +69,10 @@ class BoardComment extends \Foolz\FoolFuuka\View\View
 
                 <?php if (!$p->radix->hide_thumbnails || $this->getAuth()->hasAccess('maccess.mod')) : ?>
                     [<a href="<?= $this->getUri()->create($p->radix->shortname . '/search/image/' . $p_media->getSafeMediaHash()) ?>"><?= _i('View Same') ?></a>]
-                    [<a href="http://google.com/searchbyimage?image_url=<?= trim($this->getUri()->create($p_media->getMediaLink($this->getRequest())),'/') ?>">Google</a>]
-                    [<a href="http://iqdb.org/?url=<?= trim($this->getUri()->create($p_media->getMediaLink($this->getRequest())),'/') ?>">iqdb</a>]
-                    [<a href="http://saucenao.com/search.php?url=<?= trim($this->getUri()->create($p_media->getMediaLink($this->getRequest())),'/') ?>">SauceNAO</a>]
+                    [<a href="http://www.google.com/searchbyimage?image_url=<?= $p_media->getThumbLink($this->getRequest()) ?>">Google</a>]
+                    [<a href="http://imgops.com/<?= $p_media->getThumbLink($this->getRequest()) ?>">ImgOps</a>]
+                    [<a href="http://iqdb.org/?url=<?= $p_media->getThumbLink($this->getRequest()) ?>">iqdb</a>]
+                    [<a href="http://saucenao.com/search.php?url=<?= $p_media->getThumbLink($this->getRequest()) ?>">SauceNAO</a>]
                     <?php endif; ?>
                 <br />
                 <?php endif; ?>
@@ -95,6 +96,24 @@ class BoardComment extends \Foolz\FoolFuuka\View\View
                             <?= _i('Quoted By:') ?> <?= $p->getBacklinks() ? implode(' ', $p->getBacklinks()) : '' ?>
                         </div>
                         <blockquote><p><?= $p->getCommentProcessed() ?></p></blockquote>
+                        <?php if ($p_media !== null && $p_media->getMediaStatus($this->getRequest()) === 'normal' && $p->radix->getValue('display_exif') && $p_media->exif !== NULL) : ?>
+                            <table class="exiftable"><tbody>
+                                <?php foreach (json_decode($p_media->exif) as $a => $b) : ?>
+                                    <?php if(is_object($b)) : ?>
+                                        <?php foreach ($b as $c => $d) : ?>
+                                            <tr><td><?= htmlentities($a)," ",htmlentities($c) ?></td><td><?= htmlentities($d) ?></td></tr>
+                                        <?php endforeach ?>
+                                    <?php elseif(is_array($b)): ?>
+                                        <tr><td><?= htmlentities($a) ?></td><td>
+                                                <?php foreach ($b as $e) : ?>
+                                                    <?= htmlentities($e) ?>
+                                                <?php endforeach ?></td></tr>
+                                    <?php else: ?>
+                                        <tr><td><?= htmlentities($a) ?></td><td><?= htmlentities($b) ?></td></tr>
+                                    <?php endif; ?>
+                                <?php endforeach ?>
+                                </tbody></table>
+                        <?php endif; ?>
                     </td>
                 </tr>
             </tbody>

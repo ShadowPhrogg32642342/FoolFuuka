@@ -557,7 +557,7 @@ class Board extends Model
         }
 
         try {
-            $this->total_count = Cache::item('Foolz_FoolFuuka_Model_Board.getLatestCount.result.'.$type_cache)->get();
+            $this->total_count = Cache::item('Foolz_FoolFuuka_Model_Board.getLatestCount.result.'.$this->radix->shortname.'.'.$type_cache)->get();
             return $this;
         } catch (\OutOfBoundsException $e) {
             switch ($order) {
@@ -582,7 +582,7 @@ class Board extends Model
                 ->fetch();
 
             $this->total_count = $result['threads'];
-            Cache::item('Foolz_FoolFuuka_Model_Board.getLatestCount.result.'.$type_cache)->set($this->total_count, 300);
+            Cache::item('Foolz_FoolFuuka_Model_Board.getLatestCount.result.'.$this->radix->shortname.'.'.$type_cache)->set($this->total_count, 300);
         }
 
         $this->profiler->logMem('Board $this', $this);
@@ -689,7 +689,7 @@ class Board extends Model
         extract($this->options);
 
         try {
-            $this->total_count = Cache::item('Foolz_FoolFuuka_Model_Board.getThreadsCount.result')->get();
+            $this->total_count = Cache::item('Foolz_FoolFuuka_Model_Board.getThreadsCount.result.'.$this->radix->shortname)->get();
         } catch (\OutOfBoundsException $e) {
             $result = $this->dc->qb()
                 ->select('COUNT(thread_num) AS threads')
@@ -698,7 +698,7 @@ class Board extends Model
                 ->fetch();
 
             $this->total_count = $result['threads'];
-            Cache::item('Foolz_FoolFuuka_Model_Board.getThreadsCount.result')->set($this->total_count, 300);
+            Cache::item('Foolz_FoolFuuka_Model_Board.getThreadsCount.result.'.$this->radix->shortname)->set($this->total_count, 300);
         }
 
         return $this;
@@ -956,10 +956,12 @@ class Board extends Model
             'dead' => (bool) $this->radix->archive,
             'ghost_exist' => $ghost_post_present,
             'disable_image_upload' => (bool) $this->radix->archive,
-            'last_modified' => $last_modified
+            'last_modified' => $last_modified,
+            'nreplies' => $thread['nreplies'],
+            'nimages' => $thread['nimages']
         ];
 
-        if (($this->radix->getValue('thread_lifetime') > 0 && time() - $thread['time_last'] > $this->radix->getValue('thread_lifetime')) || $ghost_post_present) {
+        if (($this->radix->getValue('thread_lifetime') > 0 && time() - $thread['time_last'] > $this->radix->getValue('thread_lifetime') && !$result['sticky']) || $ghost_post_present) {
             $result['dead'] = true;
             $result['disable_image_upload'] = true;
         }
@@ -999,6 +1001,21 @@ class Board extends Model
     }
 
     /**
+     * @param string $poster_ip for matching all post by that ip
+     * @return \Foolz\FoolFuuka\Model\Board
+     */
+    protected function p_getPostsByIP($poster_ip = null)
+    {
+        $this->setMethodFetching('getPostComment');
+
+        if ($poster_ip !== null) {
+            $this->setOptions('poster_ip', $poster_ip);
+        }
+
+        return $this;
+    }
+
+    /**
      * Gets a post by num or doc_d
      *
      * @return  \Foolz\FoolFuuka\Model\Board  The current object
@@ -1026,6 +1043,9 @@ class Board extends Model
         } elseif (isset($doc_id)) {
             $query->where('doc_id = :doc_id')
                 ->setParameter(':doc_id', $doc_id);
+        } elseif (isset($poster_ip)) {
+            $query->where('poster_ip = :poster_ip')
+                ->setParameter(':poster_ip', $poster_ip);
         } else {
             throw new BoardMissingOptionsException(_i('No posts found with the submitted options.'));
         }

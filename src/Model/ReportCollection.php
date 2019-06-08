@@ -21,6 +21,13 @@ class ReportCollection extends Model
     protected $preloaded = null;
 
     /**
+     * An array of grouped moderation
+     *
+     * @var  array|null
+     */
+    protected $grouped = null;
+
+    /**
      * @var DoctrineConnection
      */
     protected $dc;
@@ -45,6 +52,11 @@ class ReportCollection extends Model
      */
     protected $ban_factory;
 
+    /**
+     * @var Audit
+     */
+    protected $audit;
+
     public function __construct(\Foolz\FoolFrame\Model\Context $context)
     {
         parent::__construct($context);
@@ -54,6 +66,7 @@ class ReportCollection extends Model
         $this->radix_coll = $context->getService('foolfuuka.radix_collection');
         $this->media_factory = $context->getService('foolfuuka.media_factory');
         $this->ban_factory = $context->getService('foolfuuka.ban_factory');
+        $this->audit = $context->getService('foolfuuka.audit_factory');
 
         $this->preload();
     }
@@ -106,6 +119,10 @@ class ReportCollection extends Model
             return;
         }
 
+        if ($this->grouped !== null) {
+            return;
+        }
+
         try {
             $this->preloaded = Cache::item('foolfuuka.model.report.preload.preloaded')->get();
         } catch (\OutOfBoundsException $e) {
@@ -117,6 +134,19 @@ class ReportCollection extends Model
 
             Cache::item('foolfuuka.model.report.preload.preloaded')->set($this->preloaded, 1800);
         }
+
+        try {
+            $this->grouped = Cache::item('foolfuuka.model.report.preload.grouped')->get();
+        } catch (\OutOfBoundsException $e) {
+            $this->grouped = $this->dc->qb()
+                ->select('*')
+                ->from($this->dc->p('reports'), 'r')
+                ->groupBy('board_id','doc_id')
+                ->execute()
+                ->fetchAll();
+
+            Cache::item('foolfuuka.model.report.preload.grouped')->set($this->grouped, 1800);
+        }
     }
 
     /**
@@ -125,7 +155,9 @@ class ReportCollection extends Model
     public function p_clearCache()
     {
         $this->preloaded = null;
+        $this->grouped = null;
         Cache::item('foolfuuka.model.report.preload.preloaded')->delete();
+        Cache::item('foolfuuka.model.report.preload.grouped')->delete();
     }
 
     /**
@@ -173,6 +205,25 @@ class ReportCollection extends Model
     }
 
     /**
+     * Returns an array of Reports by reporter IP
+     * @param $ip_reporter
+     *
+     * @return array  An array of \Foolz\FoolFuuka\Model\Report
+     */
+    public function getByReporterIp($ip_reporter) {
+        $this->preload();
+        $result = [];
+
+        foreach ($this->preloaded as $item) {
+            if ($item['ip_reporter'] === $ip_reporter) {
+                $result[] = $item;
+            }
+        }
+
+        return $this->fromArrayDeep($result);
+    }
+
+    /**
      * Fetches and returns all the Reports
      *
      * @return  array  An array of Report
@@ -182,6 +233,18 @@ class ReportCollection extends Model
         $this->preload();
 
         return $this->fromArrayDeep($this->preloaded);
+    }
+
+    /**
+     * Fetches and returns grouped Reports
+     *
+     * @return  array  An array of Report
+     */
+    public function getGrouped()
+    {
+        $this->preload();
+
+        return $this->fromArrayDeep($this->grouped);
     }
 
     /**
@@ -219,11 +282,9 @@ class ReportCollection extends Model
             ->where('board_id = :board_id')
             ->andWhere('ip_reporter = :ip_reporter')
             ->andWhere('doc_id = :doc_id')
-            // ->orWhere('media_id = :media_id')
             ->setParameters([
                 ':board_id' => $report->board_id,
                 ':doc_id' => $report->doc_id,
-                // ':media_id' => $report->media_id,
                 ':ip_reporter' => $report->ip_reporter
             ])
             ->execute()
@@ -323,6 +384,16 @@ class ReportCollection extends Model
      */
     public function p_delete($id)
     {
+        $report = $this->dc->qb()
+            ->select('*')
+            ->from($this->dc->p('reports'))
+            ->where('id = :id')
+            ->setParameter(':id', $id)
+            ->execute()
+            ->fetch();
+
+        $this->audit->log(Audit::AUDIT_DEL_REPORT, ['radix' => $report['board_id'], 'ip_reporter' => $report['ip_reporter'], 'doc_id' => $report['doc_id'], 'reason' => $report['reason'], 'created' => $report['created']]);
+
         $this->dc->qb()
             ->delete($this->dc->p('reports'))
             ->where('id = :id')

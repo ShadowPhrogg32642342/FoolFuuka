@@ -1,6 +1,6 @@
 <?php
 
-namespace Foolz\FoolFuuka\Theme\FoolFuuka\Partial;
+namespace Foolz\FoolFuuka\Theme\Mobile\Partial;
 
 use Foolz\FoolFuuka\Model\Comment;
 use Foolz\FoolFuuka\Model\CommentBulk;
@@ -71,10 +71,10 @@ class Board extends \Foolz\FoolFuuka\View\View
 
                 $this->flush();
                 ?>
-                <?php elseif (isset($post['posts'])) : ?>
-        <article class="clearfix thread">
-                    <?php \Foolz\Plugin\Hook::forge('foolfuuka.themes.default_after_headless_open')->setObject($this)->setParam('board', array(isset($radix) ? $radix : null))->execute(); ?>
-                <?php endif; ?>
+            <?php elseif (isset($post['posts'])) : ?>
+                <article class="clearfix thread">
+                <?php \Foolz\Plugin\Hook::forge('foolfuuka.themes.default_after_headless_open')->setObject($this)->setParam('board', array(isset($radix) ? $radix : null))->execute(); ?>
+            <?php endif; ?>
 
             <aside class="posts">
                 <?php
@@ -118,11 +118,11 @@ class Board extends \Foolz\FoolFuuka\View\View
             <?php if ($thread_id !== 0) : ?>
             <div class="js_hook_realtimethread"></div>
             <?= $this->getBuilder()->isPartial('tools_reply_box') ? $this->getBuilder()->getPartial('tools_reply_box')->build() : '' ?>
-            <?php endif; ?>
-            <?php if (isset($post['op']) || isset($post['posts'])) : ?>
-        </article>
         <?php endif; ?>
-            <?php endforeach; ?>
+            <?php if (isset($post['op']) || isset($post['posts'])) : ?>
+            </article>
+        <?php endif; ?>
+        <?php endforeach; ?>
         <article class="clearfix thread backlink_container">
             <div id="backlink" style="position: absolute; top: 0; left: 0; z-index: 5;"></div>
         </article>

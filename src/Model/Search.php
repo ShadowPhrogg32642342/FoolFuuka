@@ -44,6 +44,13 @@ class Search extends Board
      */
     protected $media_factory;
 
+    /**
+     * Title for the search query
+     *
+     * @var string
+     */
+    public $title;
+
     public function __construct(\Foolz\FoolFrame\Model\Context $context)
     {
         parent::__construct($context);
@@ -66,6 +73,11 @@ class Search extends Board
                 'type' => 'input',
                 'label' => _i('Comment'),
                 'name' => 'text'
+            ],
+            [
+                'type' => 'input',
+                'label' => _i('Thread No.'),
+                'name' => 'tnum'
             ],
             [
                 'type' => 'input',
@@ -145,7 +157,9 @@ class Search extends Board
                 'elements' => [
                     ['value' => false, 'text' => _i('All')],
                     ['value' => 'text', 'text' => _i('Only With Images')],
-                    ['value' => 'image', 'text' => _i('Only Without Images')]
+                    ['value' => 'image', 'text' => _i('Only Without Images')],
+                    ['value' => 'spoiler', 'text' => _i('Only Spoiler Images')],
+                    ['value' => 'not-spoiler', 'text' => _i('Only Non-Spoiler Images')]
                 ]
             ],
             [
@@ -227,7 +241,7 @@ class Search extends Board
         extract($this->options);
 
         $search_inputs = [
-            'boards', 'subject', 'text', 'username', 'tripcode', 'email', 'capcode', 'uid', 'poster_ip', 'country',
+            'boards', 'subject', 'text', 'tnum', 'username', 'tripcode', 'email', 'capcode', 'uid', 'poster_ip', 'country',
             'filename', 'image', 'deleted', 'ghost', 'filter', 'type', 'start', 'end', 'results', 'order'
         ];
 
@@ -327,6 +341,10 @@ class Search extends Board
             $query->match('comment', $input['text'], true);
         }
 
+        if ($input['tnum'] !== null) {
+            $query->where('tnum', (int) $input['tnum']);
+        }
+
         if ($input['username'] !== null) {
             $query->match('name', $input['username']);
         }
@@ -404,6 +422,14 @@ class Search extends Board
                     $query->where('has_image', 0);
                     break;
                 case 'text':
+                    $query->where('has_image', 1);
+                    break;
+                case 'spoiler':
+                    $query->where('is_spoiler', 1);
+                    $query->where('has_image', 1);
+                    break;
+                case 'not-spoiler':
+                    $query->where('is_spoiler', 0);
                     $query->where('has_image', 1);
                     break;
             }
@@ -512,6 +538,7 @@ class Search extends Board
         }
 
         $this->comments[0]['posts'] = $this->comments_unsorted;
+        $this->title = $this->buildSearchTitle($input);
 
         return $this;
     }
@@ -524,5 +551,100 @@ class Search extends Board
     public function getTotalResults()
     {
         return $this->total_found;
+    }
+
+    /**
+     * Generate the $title with all search modifiers enabled.
+     *
+     * @param array  $search  The search arguments
+     * @return string  Title of search query
+     */
+    protected function buildSearchTitle($search)
+    {
+        $title = [];
+        if ($search['text'])
+            array_push($title,
+                sprintf(_i('that contain &lsquo;%s&rsquo;'),
+                    e($search['text'])));
+        if ($search['tnum'])
+            array_push($title,
+                sprintf(_i('in thread #%s'),
+                    e($search['tnum'])));
+        if ($search['subject'])
+            array_push($title,
+                sprintf(_i('with the subject &lsquo;%s&rsquo;'),
+                    e($search['subject'])));
+        if ($search['username'])
+            array_push($title,
+                sprintf(_i('with the username &lsquo;%s&rsquo;'),
+                    e($search['username'])));
+        if ($search['tripcode'])
+            array_push($title,
+                sprintf(_i('with the tripcode &lsquo;%s&rsquo;'),
+                    e($search['tripcode'])));
+        if ($search['uid'])
+            array_push($title,
+                sprintf(_i('with the unique id &lsquo;%s&rsquo;'),
+                    e($search['uid'])));
+        if ($search['email'])
+            array_push($title,
+                sprintf(_i('with the email &lsquo;%s&rsquo;'),
+                    e($search['email'])));
+        if ($search['filename'])
+            array_push($title,
+                sprintf(_i('with the filename &lsquo;%s&rsquo;'),
+                    e($search['filename'])));
+        if ($search['image']) {
+            array_push($title,
+                sprintf(_i('with the image hash &lsquo;%s&rsquo;'),
+                    e($search['image'])));
+        }
+        if ($search['country'])
+            array_push($title,
+                sprintf(_i('in &lsquo;%s&rsquo;'),
+                    e($search['country'])));
+        if ($search['deleted'] == 'deleted')
+            array_push($title, _i('that have been deleted'));
+        if ($search['deleted'] == 'not-deleted')
+            array_push($title, _i('that has not been deleted'));
+        if ($search['ghost'] == 'only')
+            array_push($title, _i('that are by ghosts'));
+        if ($search['ghost'] == 'none')
+            array_push($title, _i('that are not by ghosts'));
+        if ($search['type'] == 'sticky')
+            array_push($title, _i('that were stickied'));
+        if ($search['type'] == 'op')
+            array_push($title, _i('that are only OP posts'));
+        if ($search['type'] == 'posts')
+            array_push($title, _i('that are only non-OP posts'));
+        if ($search['filter'] == 'image')
+            array_push($title, _i('that do not contain images'));
+        if ($search['filter'] == 'text')
+            array_push($title, _i('that only contain images'));
+        if ($search['filter'] == 'spoiler')
+            array_push($title, _i('that only contain spoiler images'));
+        if ($search['filter'] == 'not-spoiler')
+            array_push($title, _i('that do not contain spoiler images'));
+        if ($search['capcode'] == 'user')
+            array_push($title, _i('that were made by users'));
+        if ($search['capcode'] == 'mod')
+            array_push($title, _i('that were made by mods'));
+        if ($search['capcode'] == 'admin')
+            array_push($title, _i('that were made by admins'));
+        if ($search['start'])
+            array_push($title, sprintf(_i('posts after %s'), e($search['start'])));
+        if ($search['end'])
+            array_push($title, sprintf(_i('posts before %s'), e($search['end'])));
+        if ($search['order'] == 'asc')
+            array_push($title, _i('in ascending order'));
+
+        if (!empty($title)) {
+            $title = sprintf(_i('Searching for posts %s.'),
+                implode(' ' . _i('and') . ' ', $title));
+        } else {
+            $title = _i('Displaying all posts with no filters applied.');
+        }
+
+        return $title;
     }
 }

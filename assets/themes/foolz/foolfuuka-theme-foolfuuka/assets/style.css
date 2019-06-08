@@ -544,7 +544,6 @@
 }
 .theme_default article.thread > .report_reason {
   margin-bottom: 10px;
-  max-width: 600px;
 }
 .theme_default article.thread > .text {
   padding: 10px 10px 10px 30px;
@@ -1207,4 +1206,16 @@ a.visited {
 
 code.hljs {
   display: inline;
+}
+.btn-group + .btn-group {
+  margin-left: 0 !important;
+}
+.theme_default article .post_extra_mod {
+  display: none;
+}
+.theme_default .modal-information label {
+  min-width: 95px;
+}
+.theme_default article .alert-info {
+  color: #364041;
 }

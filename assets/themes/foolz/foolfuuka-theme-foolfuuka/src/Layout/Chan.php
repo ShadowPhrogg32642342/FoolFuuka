@@ -47,6 +47,7 @@ class Chan extends \Foolz\FoolFuuka\View\View
     <link rel="stylesheet" href="<?= $this->getUri()->create('foolfuuka/components/highlightjs/styles') ?>default.css">
     <link rel="stylesheet" type="text/css" href="<?= $this->getAssetManager()->getAssetLink('bootstrap.legacy.css') ?>">
     <link rel="stylesheet" type="text/css" href="<?= $this->getAssetManager()->getAssetLink('font-awesome/css/font-awesome.css') ?>">
+
     <!--[if lt IE 8]>
         <link rel="stylesheet" type="text/css" href="<?= $this->getAssetManager()->getAssetLink('font-awesome/css/font-awesome-ie7.css') ?>">
     <![endif]-->
@@ -175,6 +176,7 @@ class Chan extends \Foolz\FoolFuuka\View\View
                                     </li>
                                 </ul>
                             </li>
+                            <?php if ($radix->getValue('is_nsfw')) : ?><li><a class="nsfw_label" data-toggle="tooltip" data-placement="bottom" title="This board is very likely to have adult content"><span class="label label-important">NSFW</span></a></li><?php endif; ?>
                             <?php endif; ?>
                             <?php
                             $top_nav = array();
@@ -336,8 +338,6 @@ class Chan extends \Foolz\FoolFuuka\View\View
                         </a>
                     </li>
                     <?php endforeach; ?>
-                    <li class="divider"></li>
-                    <li><a href="//archive.foolz.us/_/articles/translate/"><?= _i('Add a Translation') ?></a></li>
                 </ul>
             </div>
         </div>
@@ -366,7 +366,7 @@ class Chan extends \Foolz\FoolFuuka\View\View
 
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
     <script>
-        window.jQuery || document.write('<script src="<?= $this->getAssetManager()->getAssetLink('assets/js/jquery.js') ?>"><\/script>');
+        window.jQuery || document.write('<script src="<?= $this->getAssetManager()->getAssetLink('jquery.js') ?>"><\/script>');
         hljs.configure({
             tableReplace: '  '
         });
