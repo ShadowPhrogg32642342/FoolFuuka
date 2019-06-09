@@ -14,23 +14,23 @@
         },
         {
             "type": "git",
-            "url": "https://github.com/pleebe/foolframe"
+            "url": "https://github.com/magyarchan/foolframe"
         },
         {
             "type": "git",
-            "url": "https://github.com/pleebe/Plugin"
+            "url": "https://github.com/magyarchan/Plugin"
         },
         {
             "type": "git",
-            "url": "https://github.com/pleebe/Cache"
+            "url": "https://github.com/magyarchan/Cache"
         },
         {
             "type": "git",
-            "url": "https://github.com/pleebe/Package"
+            "url": "https://github.com/magyarchan/Package"
         },
         {
             "type": "git",
-            "url": "https://github.com/pleebe/Theme"
+            "url": "https://github.com/magyarchan/Theme"
         }
     ],
     "require": {
